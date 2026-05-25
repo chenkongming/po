@@ -1,0 +1,27 @@
+Build started at 2026-05-25 ÖÜÒ» 19:20:22.33
+npm WARN lifecycle The node binary used for scripts is D:\nodejs\node.exe but npm is using D:\nvm\v16.20.2\node.exe itself. Use the `--scripts-prepend-node-path` option to include the path for the node binary npm was executed with.
+
+> rigong@1.0.0 cap:sync F:\po
+> npm run copy-web && npx cap sync android
+
+npm WARN lifecycle The node binary used for scripts is D:\nodejs\node.exe but npm is using D:\nvm\v16.20.2\node.exe itself. Use the `--scripts-prepend-node-path` option to include the path for the node binary npm was executed with.
+
+> rigong@1.0.0 copy-web F:\po
+> copy-web.bat
+
+ÒÑ¸´ÖÆ         1 ¸öÎÄ¼þ¡£
+ÒÑ¸´ÖÆ         1 ¸öÎÄ¼þ¡£
+ÒÑ¸´ÖÆ         1 ¸öÎÄ¼þ¡£
+ÒÑ¸´ÖÆ         1 ¸öÎÄ¼þ¡£
+âˆš Copying web assets from www to android\app\src\main\assets\public in 51.06ms
+âˆš Creating capacitor.config.json in android\app\src\main\assets in 2.58ms
+âˆš copy android in 90.84ms
+âˆš Updating Android plugins in 13.32ms
+[info] Found 2 Capacitor plugins for android:
+       @capacitor/filesystem@7.1.8
+       @capacitor/share@7.0.4
+âˆš update android in 321.24ms
+[info] Sync finished in 0.465s
+Using JAVA_HOME=D:\androidStudio\jbr
+Stopping Daemon(s)
+2 Daemons stopped

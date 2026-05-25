@@ -7,7 +7,7 @@
     "cap:sync": "npm run copy-web && npx cap sync android",
     "cap:open": "npx cap open android",
     "android": "npx cap sync android && npx cap open android",
-    "build:apk": "npm run cap:sync && cd android && gradlew.bat assembleDebug"
+    "build:apk": "build-apk.bat"
   },
   "capacitor": {
     "platforms": [
