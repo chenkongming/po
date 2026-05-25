@@ -1,0 +1,22 @@
+{
+  "name": "rigong",
+  "version": "1.0.0",
+  "description": "行歌 - 日历打卡应用",
+  "scripts": {
+    "copy-web": "copy-web.bat",
+    "cap:sync": "npm run copy-web && npx cap sync android",
+    "cap:open": "npx cap open android",
+    "android": "npx cap sync android && npx cap open android",
+    "build:apk": "npm run cap:sync && cd android && gradlew.bat assembleDebug"
+  },
+  "capacitor": {
+    "platforms": [
+      "android"
+    ]
+  },
+  "devDependencies": {
+    "@capacitor/android": "^7.2.0",
+    "@capacitor/cli": "^7.2.0",
+    "@capacitor/core": "^7.2.0"
+  }
+}

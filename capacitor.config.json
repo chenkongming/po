@@ -1,0 +1,11 @@
+{
+  "appId": "com.rigong.app",
+  "appName": "行歌",
+  "webDir": "www",
+  "android": {
+    "allowMixedContent": true
+  },
+  "server": {
+    "androidScheme": "https"
+  }
+}

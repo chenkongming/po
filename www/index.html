@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#c4713a">
+  <meta name="color-scheme" content="light">
+  <title>行歌</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app">
+    <header class="header" id="app-header">
+      <blockquote class="header-quote" id="header-quote"></blockquote>
+      <p class="header-author" id="header-author"></p>
+    </header>
+
+    <div id="main-view">
+    <nav class="tabs">
+      <button class="tab active" data-tab="calendar">日历打卡</button>
+      <button class="tab" data-tab="records">打卡记录</button>
+      <button class="tab" data-tab="memos">备忘录</button>
+    </nav>
+
+    <section id="calendar-panel" class="panel active">
+      <div class="calendar-header">
+        <button id="prev-month" class="btn-icon" aria-label="上个月">‹</button>
+        <h2 id="month-title"></h2>
+        <button id="next-month" class="btn-icon" aria-label="下个月">›</button>
+      </div>
+
+      <div class="legend">
+        <span class="legend-item"><span class="status-icon success">✓</span> 成功</span>
+        <span class="legend-item"><span class="status-icon partial">○</span> 差点</span>
+        <span class="legend-item"><span class="status-icon fail">✗</span> 失败</span>
+      </div>
+
+      <div class="weekdays">
+        <span>日</span><span>一</span><span>二</span><span>三</span>
+        <span>四</span><span>五</span><span>六</span>
+      </div>
+
+      <div id="calendar-grid" class="calendar-grid"></div>
+      <div class="month-stats" id="month-stats"></div>
+    </section>
+
+    <section id="records-panel" class="panel">
+      <div class="records-header">
+        <h2>全部打卡记录</h2>
+        <p class="records-count" id="records-count"></p>
+      </div>
+      <div class="records-list" id="records-list"></div>
+    </section>
+
+    <section id="memos-panel" class="panel">
+      <div class="memos-header">
+        <div>
+          <h2>我的备忘录</h2>
+          <p class="memos-count" id="memos-count"></p>
+        </div>
+        <button id="new-memo-btn" class="btn-primary">+ 新建</button>
+      </div>
+      <div class="memos-list" id="memos-list"></div>
+    </section>
+    </div>
+
+    <section id="data-panel" class="data-panel hidden">
+      <div class="data-card">
+        <button id="data-back-btn" class="btn-secondary data-back-btn">← 返回</button>
+        <h2>备份与恢复</h2>
+        <p class="data-desc">将所有打卡记录和备忘录导出为 JSON 文件，可在换设备或重装后恢复。</p>
+        <p class="data-stats" id="data-stats"></p>
+        <div class="data-actions">
+          <button id="export-data-btn" class="btn-primary">导出 JSON</button>
+          <button id="import-data-btn" class="btn-secondary">导入 JSON</button>
+          <input type="file" id="import-file-input" accept=".json,application/json" hidden />
+        </div>
+        <p class="data-hint">导入会覆盖当前全部数据，请先导出备份。</p>
+      </div>
+    </section>
+  </div>
+
+  <div id="memo-modal" class="modal hidden">
+    <div class="modal-backdrop"></div>
+    <div class="modal-content memo-modal-content">
+      <h3 id="memo-modal-title">新建备忘录</h3>
+      <p class="modal-hint">支持多行文字；# 标题、> 引用、- 列表</p>
+      <textarea id="memo-input" class="memo-input" placeholder="写下想记住的事..." rows="8"></textarea>
+      <label class="memo-pin-label">
+        <input type="checkbox" id="memo-pin" />
+        <span>在列表中置顶</span>
+      </label>
+      <div class="memo-modal-actions">
+        <button id="save-memo-btn" class="btn-primary">保存</button>
+        <button id="cancel-memo-btn" class="btn-close">取消</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="checkin-modal" class="modal hidden">
+    <div class="modal-backdrop"></div>
+    <div class="modal-content">
+      <h3 id="modal-date"></h3>
+      <p class="modal-hint">选择打卡状态，并写一句话总结</p>
+      <label class="summary-label" for="checkin-summary">一句话总结</label>
+      <textarea id="checkin-summary" class="checkin-summary" placeholder="今天发生了什么？用一句话记录..." rows="3" maxlength="100"></textarea>
+      <div class="status-options">
+        <button class="status-btn success" data-status="success"><span class="status-icon success">✓</span><span>成功</span></button>
+        <button class="status-btn partial" data-status="partial"><span class="status-icon partial">○</span><span>差点</span></button>
+        <button class="status-btn fail" data-status="fail"><span class="status-icon fail">✗</span><span>失败</span></button>
+      </div>
+      <button id="clear-status" class="btn-clear">清除记录</button>
+      <button id="close-modal" class="btn-close">关闭</button>
+    </div>
+  </div>
+
+  <script src="quotes.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
