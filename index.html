@@ -12,60 +12,99 @@
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-  <div class="app">
+  <div class="app-shell">
     <header class="header" id="app-header">
       <blockquote class="header-quote" id="header-quote"></blockquote>
       <p class="header-author" id="header-author"></p>
     </header>
 
-    <div id="main-view">
-    <nav class="tabs">
-      <button class="tab active" data-tab="calendar">日历打卡</button>
-      <button class="tab" data-tab="records">打卡记录</button>
-      <button class="tab" data-tab="memos">备忘录</button>
-    </nav>
+    <main id="main-view" class="main-content">
+      <section id="calendar-panel" class="panel active">
+        <div class="calendar-card">
+          <div class="calendar-header">
+            <button id="prev-month" class="btn-icon" aria-label="上个月">‹</button>
+            <h2 id="month-title"></h2>
+            <button id="next-month" class="btn-icon" aria-label="下个月">›</button>
+          </div>
 
-    <section id="calendar-panel" class="panel active">
-      <div class="calendar-header">
-        <button id="prev-month" class="btn-icon" aria-label="上个月">‹</button>
-        <h2 id="month-title"></h2>
-        <button id="next-month" class="btn-icon" aria-label="下个月">›</button>
-      </div>
+          <div class="legend">
+            <span class="legend-item"><span class="status-icon success">✓</span> 成功</span>
+            <span class="legend-item"><span class="status-icon partial">○</span> 差点</span>
+            <span class="legend-item"><span class="status-icon fail">✗</span> 失败</span>
+          </div>
 
-      <div class="legend">
-        <span class="legend-item"><span class="status-icon success">✓</span> 成功</span>
-        <span class="legend-item"><span class="status-icon partial">○</span> 差点</span>
-        <span class="legend-item"><span class="status-icon fail">✗</span> 失败</span>
-      </div>
+          <div class="weekdays">
+            <span>日</span><span>一</span><span>二</span><span>三</span>
+            <span>四</span><span>五</span><span>六</span>
+          </div>
 
-      <div class="weekdays">
-        <span>日</span><span>一</span><span>二</span><span>三</span>
-        <span>四</span><span>五</span><span>六</span>
-      </div>
-
-      <div id="calendar-grid" class="calendar-grid"></div>
-      <div class="month-stats" id="month-stats"></div>
-    </section>
-
-    <section id="records-panel" class="panel">
-      <div class="records-header">
-        <h2>全部打卡记录</h2>
-        <p class="records-count" id="records-count"></p>
-      </div>
-      <div class="records-list" id="records-list"></div>
-    </section>
-
-    <section id="memos-panel" class="panel">
-      <div class="memos-header">
-        <div>
-          <h2>我的备忘录</h2>
-          <p class="memos-count" id="memos-count"></p>
+          <div id="calendar-grid" class="calendar-grid"></div>
+          <div class="month-stats" id="month-stats"></div>
         </div>
-        <button id="new-memo-btn" class="btn-primary">+ 新建</button>
-      </div>
-      <div class="memos-list" id="memos-list"></div>
-    </section>
-    </div>
+      </section>
+
+      <section id="summary-panel" class="panel">
+        <div class="panel-head">
+          <h2>打卡汇总</h2>
+          <p class="panel-subtitle" id="summary-subtitle">全部时间统计</p>
+        </div>
+        <div class="summary-period" id="summary-period">
+          <button type="button" class="period-btn active" data-period="all">全部</button>
+          <button type="button" class="period-btn" data-period="year">今年</button>
+          <button type="button" class="period-btn" data-period="month">本月</button>
+        </div>
+        <div class="summary-overview" id="summary-overview"></div>
+        <div class="summary-cards" id="summary-cards"></div>
+        <div class="summary-bar-wrap" id="summary-bar"></div>
+        <div class="summary-insight" id="summary-insight"></div>
+      </section>
+
+      <section id="records-panel" class="panel">
+        <div class="panel-head">
+          <h2>打卡记录</h2>
+          <p class="panel-subtitle records-count" id="records-count"></p>
+        </div>
+        <div class="records-list" id="records-list"></div>
+      </section>
+
+      <section id="memos-panel" class="panel">
+        <div class="memos-header">
+          <div class="panel-head">
+            <h2>备忘录</h2>
+            <p class="panel-subtitle memos-count" id="memos-count"></p>
+          </div>
+          <button id="new-memo-btn" class="btn-primary btn-fab">+ 新建</button>
+        </div>
+        <div class="memos-list" id="memos-list"></div>
+      </section>
+    </main>
+
+    <nav class="bottom-nav" id="bottom-nav" aria-label="主导航">
+      <button type="button" class="nav-item active" data-tab="calendar" aria-label="日历">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+          <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+        </svg>
+        <span class="nav-label">日历</span>
+      </button>
+      <button type="button" class="nav-item" data-tab="summary" aria-label="汇总">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+          <line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>
+        </svg>
+        <span class="nav-label">汇总</span>
+      </button>
+      <button type="button" class="nav-item" data-tab="records" aria-label="记录">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>
+        </svg>
+        <span class="nav-label">记录</span>
+      </button>
+      <button type="button" class="nav-item" data-tab="memos" aria-label="备忘录">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+          <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+        </svg>
+        <span class="nav-label">备忘</span>
+      </button>
+    </nav>
 
     <section id="data-panel" class="data-panel hidden">
       <div class="data-card">
@@ -97,8 +136,8 @@
         <button id="save-memo-btn" class="btn-primary">保存</button>
         <button id="cancel-memo-btn" class="btn-close">取消</button>
       </div>
+      </div>
     </div>
-  </div>
 
   <div id="checkin-modal" class="modal hidden">
     <div class="modal-backdrop"></div>

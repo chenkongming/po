@@ -222,16 +222,65 @@ const checkins = migrateCheckins(loadJSON(STORAGE_KEYS.checkins, {}));
 let memos = loadMemos();
 let editingMemoId = null;
 
-// ===== Tab 切换 =====
-document.querySelectorAll(".tab").forEach((tab) => {
-  tab.addEventListener("click", () => {
-    document.querySelectorAll(".tab").forEach((t) => t.classList.remove("active"));
-    document.querySelectorAll("#main-view .panel").forEach((p) => p.classList.remove("active"));
-    tab.classList.add("active");
-    document.getElementById(`${tab.dataset.tab}-panel`).classList.add("active");
-    if (tab.dataset.tab === "records") renderRecords();
-    if (tab.dataset.tab === "memos") renderMemos();
+let summaryPeriod = "all";
+
+function getCheckinStats(period = "all", refDate = null) {
+  const base = refDate || new Date();
+  const year = base.getFullYear();
+  const month = base.getMonth();
+  let success = 0;
+  let partial = 0;
+  let fail = 0;
+
+  Object.entries(checkins).forEach(([key, value]) => {
+    const record = typeof value === "string" ? { status: value } : value;
+    if (!record?.status) return;
+
+    const parsed = parseDateKey(key);
+    if (period === "year" && parsed.year !== year) return;
+    if (period === "month" && (parsed.year !== year || parsed.month !== month)) return;
+
+    if (record.status === "success") success++;
+    else if (record.status === "partial") partial++;
+    else if (record.status === "fail") fail++;
   });
+
+  const total = success + partial + fail;
+  const successRate = total ? Math.round((success / total) * 100) : 0;
+  return { success, partial, fail, total, successRate };
+}
+
+function getSummaryPeriodLabel(period) {
+  const now = new Date();
+  if (period === "year") return `${now.getFullYear()} 年统计`;
+  if (period === "month") return `${now.getFullYear()} 年 ${now.getMonth() + 1} 月统计`;
+  return "全部时间统计";
+}
+
+function getSummaryInsight(stats) {
+  if (!stats.total) return "还没有打卡数据，去日历页记录第一天吧。";
+  if (stats.successRate >= 80) return "状态很好，多数日子都在向目标前进。";
+  if (stats.successRate >= 50) return "整体在正轨上，继续稳住节奏。";
+  if (stats.partial > stats.fail) return "有不少「差点」，再坚持一点就能更多成功。";
+  return "别灰心，每一天的记录都是在重新出发。";
+}
+
+// ===== 底部导航 =====
+function switchTab(tabName) {
+  document.querySelectorAll(".nav-item").forEach((item) => {
+    item.classList.toggle("active", item.dataset.tab === tabName);
+  });
+  document.querySelectorAll("#main-view .panel").forEach((panel) => {
+    panel.classList.toggle("active", panel.id === `${tabName}-panel`);
+  });
+
+  if (tabName === "records") renderRecords();
+  if (tabName === "memos") renderMemos();
+  if (tabName === "summary") renderSummary();
+}
+
+document.querySelectorAll(".nav-item").forEach((item) => {
+  item.addEventListener("click", () => switchTab(item.dataset.tab));
 });
 
 const HEADER_CLICKS_NEEDED = 5;
@@ -241,6 +290,7 @@ let headerClickTimer = null;
 
 function openDataPanel() {
   document.getElementById("main-view").classList.add("hidden");
+  document.getElementById("bottom-nav").classList.add("hidden");
   document.getElementById("data-panel").classList.remove("hidden");
   renderDataPanel();
 }
@@ -248,6 +298,7 @@ function openDataPanel() {
 function closeDataPanel() {
   document.getElementById("data-panel").classList.add("hidden");
   document.getElementById("main-view").classList.remove("hidden");
+  document.getElementById("bottom-nav").classList.remove("hidden");
 }
 
 document.getElementById("app-header").addEventListener("click", () => {
@@ -344,36 +395,117 @@ function renderCalendar() {
 }
 
 function renderMonthStats() {
+  const stats = getCheckinStats("month", new Date(currentYear, currentMonth, 1));
   const statsEl = document.getElementById("month-stats");
-  let success = 0;
-  let partial = 0;
-  let fail = 0;
-
-  Object.entries(checkins).forEach(([key, value]) => {
-    const record = typeof value === "string" ? { status: value } : value;
-    const { year, month } = parseDateKey(key);
-    if (year === currentYear && month === currentMonth) {
-      if (record.status === "success") success++;
-      else if (record.status === "partial") partial++;
-      else if (record.status === "fail") fail++;
-    }
-  });
 
   statsEl.innerHTML = `
     <div class="stat-item success">
-      <div class="stat-num">${success}</div>
+      <div class="stat-num">${stats.success}</div>
       <div class="stat-label">成功</div>
     </div>
     <div class="stat-item partial">
-      <div class="stat-num">${partial}</div>
+      <div class="stat-num">${stats.partial}</div>
       <div class="stat-label">差点</div>
     </div>
     <div class="stat-item fail">
-      <div class="stat-num">${fail}</div>
+      <div class="stat-num">${stats.fail}</div>
       <div class="stat-label">失败</div>
     </div>
   `;
 }
+
+function renderSummary() {
+  const stats = getCheckinStats(summaryPeriod);
+  const periodLabel = getSummaryPeriodLabel(summaryPeriod);
+
+  document.getElementById("summary-subtitle").textContent = periodLabel;
+
+  const overviewEl = document.getElementById("summary-overview");
+  if (!stats.total) {
+    overviewEl.innerHTML = `
+      <div class="summary-empty">
+        <p class="summary-empty-title">暂无打卡数据</p>
+        <p class="summary-empty-hint">在日历页完成第一次打卡后，这里会显示汇总</p>
+      </div>
+    `;
+    document.getElementById("summary-cards").innerHTML = "";
+    document.getElementById("summary-bar").innerHTML = "";
+    document.getElementById("summary-insight").innerHTML = "";
+    return;
+  }
+
+  overviewEl.innerHTML = `
+    <div class="overview-ring">
+      <svg viewBox="0 0 120 120" class="ring-svg" aria-hidden="true">
+        <circle cx="60" cy="60" r="52" class="ring-bg"/>
+        <circle cx="60" cy="60" r="52" class="ring-progress"
+          stroke-dasharray="${(stats.successRate / 100) * 326.73} 326.73"/>
+      </svg>
+      <div class="overview-center">
+        <span class="overview-rate">${stats.successRate}%</span>
+        <span class="overview-label">成功率</span>
+      </div>
+    </div>
+    <div class="overview-meta">
+      <span class="overview-total">${stats.total}</span>
+      <span class="overview-total-label">次打卡</span>
+    </div>
+  `;
+
+  document.getElementById("summary-cards").innerHTML = `
+    <article class="summary-card success">
+      <span class="summary-card-icon status-icon success">✓</span>
+      <span class="summary-card-num">${stats.success}</span>
+      <span class="summary-card-label">成功</span>
+      <span class="summary-card-pct">${Math.round((stats.success / stats.total) * 100)}%</span>
+    </article>
+    <article class="summary-card partial">
+      <span class="summary-card-icon status-icon partial">○</span>
+      <span class="summary-card-num">${stats.partial}</span>
+      <span class="summary-card-label">差点</span>
+      <span class="summary-card-pct">${Math.round((stats.partial / stats.total) * 100)}%</span>
+    </article>
+    <article class="summary-card fail">
+      <span class="summary-card-icon status-icon fail">✗</span>
+      <span class="summary-card-num">${stats.fail}</span>
+      <span class="summary-card-label">失败</span>
+      <span class="summary-card-pct">${Math.round((stats.fail / stats.total) * 100)}%</span>
+    </article>
+  `;
+
+  const successPct = (stats.success / stats.total) * 100;
+  const partialPct = (stats.partial / stats.total) * 100;
+  const failPct = (stats.fail / stats.total) * 100;
+
+  document.getElementById("summary-bar").innerHTML = `
+    <p class="summary-bar-title">占比分布</p>
+    <div class="summary-bar">
+      <span class="bar-seg success" style="width:${successPct}%"></span>
+      <span class="bar-seg partial" style="width:${partialPct}%"></span>
+      <span class="bar-seg fail" style="width:${failPct}%"></span>
+    </div>
+    <div class="summary-bar-legend">
+      <span><i class="dot success"></i>成功 ${stats.success}</span>
+      <span><i class="dot partial"></i>差点 ${stats.partial}</span>
+      <span><i class="dot fail"></i>失败 ${stats.fail}</span>
+    </div>
+  `;
+
+  document.getElementById("summary-insight").innerHTML = `
+    <p class="insight-text">${getSummaryInsight(stats)}</p>
+  `;
+}
+
+document.getElementById("summary-period").addEventListener("click", (e) => {
+  const btn = e.target.closest(".period-btn");
+  if (!btn) return;
+  summaryPeriod = btn.dataset.period;
+  document.querySelectorAll(".period-btn").forEach((item) => {
+    item.classList.toggle("active", item === btn);
+  });
+  renderSummary();
+});
+
 
 document.getElementById("prev-month").addEventListener("click", () => {
   currentMonth--;
@@ -422,6 +554,7 @@ function saveCheckin(status) {
   };
   saveJSON(STORAGE_KEYS.checkins, checkins);
   renderCalendar();
+  renderSummary();
   closeModal();
 }
 
@@ -437,6 +570,7 @@ document.getElementById("clear-status").addEventListener("click", () => {
   delete checkins[selectedDateKey];
   saveJSON(STORAGE_KEYS.checkins, checkins);
   renderCalendar();
+  renderSummary();
   closeModal();
 });
 
@@ -650,6 +784,7 @@ function replaceCheckins(nextCheckins) {
 function reloadAppData() {
   renderHeaderQuote();
   renderCalendar();
+  renderSummary();
   renderRecords();
   renderMemos();
   renderDataPanel();
@@ -661,17 +796,64 @@ function renderDataPanel() {
     `当前：${checkinCount} 条打卡 · ${memoCount} 条备忘录`;
 }
 
-function exportAllData() {
-  const payload = buildExportPayload();
-  const json = JSON.stringify(payload, null, 2);
+function downloadJsonInBrowser(json, fileName) {
   const blob = new Blob([json], { type: "application/json;charset=utf-8" });
   const url = URL.createObjectURL(blob);
-  const date = getTodayKey();
   const anchor = document.createElement("a");
   anchor.href = url;
-  anchor.download = `${APP_NAME}-backup-${date}.json`;
+  anchor.download = fileName;
   anchor.click();
   URL.revokeObjectURL(url);
+}
+
+async function exportJsonNative(Capacitor, json, fileName) {
+  const Filesystem = Capacitor.registerPlugin("Filesystem");
+  const Share = Capacitor.registerPlugin("Share");
+
+  await Filesystem.writeFile({
+    path: fileName,
+    data: json,
+    directory: "CACHE",
+    encoding: "utf8",
+  });
+
+  const { uri } = await Filesystem.getUri({
+    path: fileName,
+    directory: "CACHE",
+  });
+
+  await Share.share({
+    title: `${APP_NAME} 数据备份`,
+    files: [uri],
+    dialogTitle: "导出 JSON 备份",
+  });
+}
+
+function isShareCancelled(err) {
+  const msg = String(err?.message || err || "").toLowerCase();
+  return msg.includes("cancel") || msg.includes("abort") || msg.includes("dismiss");
+}
+
+async function exportAllData() {
+  const payload = buildExportPayload();
+  const json = JSON.stringify(payload, null, 2);
+  const date = getTodayKey();
+  const fileName = `${APP_NAME}-backup-${date}.json`;
+  const cap = window.Capacitor;
+
+  if (cap?.isNativePlatform?.()) {
+    try {
+      await exportJsonNative(cap, json, fileName);
+    } catch (err) {
+      if (!isShareCancelled(err)) {
+        console.error(err);
+        alert(`导出失败：${err.message || "未知错误"}`);
+      }
+    }
+    return;
+  }
+
+  downloadJsonInBrowser(json, fileName);
 }
 
 function importAllData(payload) {
