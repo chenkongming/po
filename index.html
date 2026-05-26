@@ -14,6 +14,15 @@
 <body>
   <div class="app-shell">
     <header class="header" id="app-header">
+      <button type="button" class="app-settings-btn open-settings-btn" aria-label="设置">
+        <svg class="app-settings-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+          <circle cx="12" cy="12" r="3"/>
+          <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
+        </svg>
+      </button>
+      <div class="header-rank" id="header-rank" aria-live="polite"></div>
+      <div class="header-streak" id="header-streak" aria-live="polite"></div>
+      <p class="header-today-win hidden" id="header-today-win" aria-live="polite"></p>
       <blockquote class="header-quote" id="header-quote"></blockquote>
       <p class="header-author" id="header-author"></p>
     </header>
@@ -23,57 +32,106 @@
         <div class="calendar-card">
           <div class="calendar-header">
             <button id="prev-month" class="btn-icon" aria-label="上个月">‹</button>
-            <h2 id="month-title"></h2>
+            <div class="calendar-title-group">
+              <h2 id="month-title" class="month-title"></h2>
+            </div>
             <button id="next-month" class="btn-icon" aria-label="下个月">›</button>
           </div>
 
           <div class="legend">
-            <span class="legend-item"><span class="status-icon success">✓</span> 成功</span>
-            <span class="legend-item"><span class="status-icon partial">○</span> 差点</span>
-            <span class="legend-item"><span class="status-icon fail">✗</span> 失败</span>
+            <span class="legend-item"><span class="status-icon success">✓</span> 守住了</span>
+            <span class="legend-item"><span class="status-icon partial">○</span> 差点犯</span>
+            <span class="legend-item"><span class="status-icon fail">✗</span> 没守住</span>
+            <span class="legend-item legend-sessions">午 / 晚</span>
           </div>
 
-          <div class="weekdays">
-            <span>日</span><span>一</span><span>二</span><span>三</span>
-            <span>四</span><span>五</span><span>六</span>
-          </div>
+          <div class="calendar-body">
+            <div class="weekdays">
+              <span>日</span><span>一</span><span>二</span><span>三</span>
+              <span>四</span><span>五</span><span>六</span>
+            </div>
 
-          <div id="calendar-grid" class="calendar-grid"></div>
+            <div id="calendar-grid" class="calendar-grid"></div>
+          </div>
           <div class="month-stats" id="month-stats"></div>
         </div>
       </section>
 
       <section id="summary-panel" class="panel">
-        <div class="panel-head">
-          <h2>全年日历</h2>
-          <p class="panel-subtitle" id="summary-subtitle"></p>
+        <div class="panel-head panel-head-row">
+          <div class="panel-head-main">
+            <h2>全年日历</h2>
+            <p class="panel-subtitle" id="summary-subtitle"></p>
+          </div>
         </div>
         <div class="year-calendar-section">
           <div class="year-calendar-head" id="year-calendar-head"></div>
-          <p class="year-calendar-hint">点击日期打卡/编辑 · 长按已打卡日期可清空</p>
+          <p class="year-calendar-hint">全年打卡概览，仅展示不可编辑</p>
           <div class="year-calendar" id="year-calendar"></div>
         </div>
-        <div class="summary-stats-block">
-          <div class="summary-overview" id="summary-overview"></div>
-          <div class="summary-cards" id="summary-cards"></div>
-          <div class="summary-bar-wrap" id="summary-bar"></div>
-          <div class="summary-insight" id="summary-insight"></div>
+        <div class="summary-habit-panel" id="summary-habit-panel"></div>
+        <div class="summary-stats-wrap">
+          <button type="button" id="summary-stats-toggle" class="summary-stats-toggle" aria-expanded="false">
+            <span class="summary-stats-toggle-text">展开详细统计</span>
+            <span class="summary-stats-toggle-icon" aria-hidden="true">›</span>
+          </button>
+          <div class="summary-stats-block collapsed" id="summary-stats-block">
+            <div class="summary-overview" id="summary-overview"></div>
+            <div class="summary-cards" id="summary-cards"></div>
+            <div class="summary-bar-wrap" id="summary-bar"></div>
+            <div class="summary-insight" id="summary-insight"></div>
+          </div>
         </div>
       </section>
 
       <section id="records-panel" class="panel">
-        <div class="panel-head">
-          <h2>打卡记录</h2>
-          <p class="panel-subtitle records-count" id="records-count"></p>
+        <div class="panel-head panel-head-row">
+          <div class="panel-head-main">
+            <h2>打卡记录</h2>
+            <p class="panel-subtitle records-count" id="records-count"></p>
+          </div>
+          <button type="button" id="records-filter-toggle" class="records-filter-toggle" aria-expanded="false" aria-controls="records-filters">
+            <span class="records-filter-toggle-text">筛选</span>
+            <span class="records-filter-toggle-icon" aria-hidden="true">›</span>
+          </button>
+        </div>
+        <div class="records-filters collapsed" id="records-filters">
+          <div class="records-filter-row">
+            <span class="records-filter-label">状态</span>
+            <div class="records-filter-chips" data-filter="status">
+              <button type="button" class="filter-chip active" data-value="">全部</button>
+              <button type="button" class="filter-chip" data-value="success">守住了</button>
+              <button type="button" class="filter-chip" data-value="partial">差点犯</button>
+              <button type="button" class="filter-chip" data-value="fail">没守住</button>
+            </div>
+          </div>
+          <div class="records-filter-row">
+            <span class="records-filter-label">场次</span>
+            <div class="records-filter-chips" data-filter="session">
+              <button type="button" class="filter-chip active" data-value="">全部</button>
+              <button type="button" class="filter-chip" data-value="noon">午间</button>
+              <button type="button" class="filter-chip" data-value="night">晚间</button>
+            </div>
+          </div>
+          <div class="records-filter-row">
+            <span class="records-filter-label">时间</span>
+            <div class="records-filter-chips" data-filter="period">
+              <button type="button" class="filter-chip active" data-value="">全部</button>
+              <button type="button" class="filter-chip" data-value="month">本月</button>
+              <button type="button" class="filter-chip" data-value="30">近30天</button>
+            </div>
+          </div>
         </div>
         <div class="records-list" id="records-list"></div>
       </section>
 
       <section id="memos-panel" class="panel">
         <div class="memos-header">
-          <div class="panel-head">
-            <h2>备忘录</h2>
-            <p class="panel-subtitle memos-count" id="memos-count"></p>
+          <div class="panel-head panel-head-row">
+            <div class="panel-head-main">
+              <h2>备忘录</h2>
+              <p class="panel-subtitle memos-count" id="memos-count"></p>
+            </div>
           </div>
           <button id="new-memo-btn" class="btn-primary btn-fab">+ 新建</button>
         </div>
@@ -88,11 +146,11 @@
         </svg>
         <span class="nav-label">日历</span>
       </button>
-      <button type="button" class="nav-item" data-tab="summary" aria-label="汇总">
+      <button type="button" class="nav-item" data-tab="summary" aria-label="全年">
         <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
           <line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>
         </svg>
-        <span class="nav-label">汇总</span>
+        <span class="nav-label">全年</span>
       </button>
       <button type="button" class="nav-item" data-tab="records" aria-label="记录">
         <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
@@ -108,18 +166,43 @@
       </button>
     </nav>
 
-    <section id="data-panel" class="data-panel hidden">
+    <section id="data-panel" class="overlay-panel hidden">
       <div class="settings-page">
         <button id="data-back-btn" class="btn-secondary data-back-btn">← 返回</button>
-        <h2 class="settings-title">设置</h2>
 
         <section class="settings-block">
           <h3 class="settings-block-title">主题</h3>
-          <p class="settings-block-desc">默认蓝白；可切换深色模式</p>
+          <p class="settings-block-desc">雾蓝更柔和；也可切换松绿、沙棕或深色风格</p>
           <div class="theme-options" id="theme-options">
-            <button type="button" class="theme-option active" data-theme="light">蓝白</button>
+            <button type="button" class="theme-option active" data-theme="light">雾蓝</button>
+            <button type="button" class="theme-option" data-theme="sage">松绿</button>
+            <button type="button" class="theme-option" data-theme="sand">沙棕</button>
             <button type="button" class="theme-option" data-theme="dark">深色</button>
+            <button type="button" class="theme-option" data-theme="ink">墨蓝</button>
+            <button type="button" class="theme-option" data-theme="dusk">暮色</button>
           </div>
+        </section>
+
+        <section class="settings-block">
+          <h3 class="settings-block-title">每日提醒</h3>
+          <p class="settings-block-desc">午间与晚间各一次打卡提醒，中午是高危时段，及时反馈很重要</p>
+          <label class="settings-check-label">
+            <input type="checkbox" id="notify-enabled" />
+            <span>开启提醒</span>
+          </label>
+          <div class="notify-time-row">
+            <label class="settings-field-label" for="notify-time1">午间提醒</label>
+            <input type="time" id="notify-time1" class="settings-time-input" value="12:00" />
+          </div>
+          <label class="settings-check-label">
+            <input type="checkbox" id="notify-enable2" checked />
+            <span>开启晚间提醒</span>
+          </label>
+          <div class="notify-time-row">
+            <label class="settings-field-label" for="notify-time2">晚间提醒</label>
+            <input type="time" id="notify-time2" class="settings-time-input" value="23:00" />
+          </div>
+          <button type="button" id="save-notify-btn" class="btn-secondary">保存提醒设置</button>
         </section>
 
         <section class="settings-block">
@@ -132,6 +215,17 @@
             <input type="file" id="import-file-input" accept=".json,application/json" hidden />
           </div>
           <p class="data-hint">导入会覆盖当前全部数据，请先导出备份</p>
+        </section>
+      </div>
+    </section>
+
+    <section id="rank-panel" class="overlay-panel hidden">
+      <div class="settings-page">
+        <button type="button" id="rank-back-btn" class="btn-secondary data-back-btn">← 返回</button>
+        <section class="settings-block">
+          <h3 class="settings-block-title">军衔说明</h3>
+          <p class="settings-block-desc">按连续清醒天数晋升，守住每一天都在升级</p>
+          <div class="rank-guide-list" id="rank-guide-list"></div>
         </section>
       </div>
     </section>
@@ -161,22 +255,67 @@
 
   <div id="checkin-modal" class="modal hidden">
     <div class="modal-backdrop"></div>
-    <div class="modal-content">
+    <div class="modal-content checkin-modal-content">
       <h3 id="modal-date"></h3>
-      <p class="modal-hint">选择打卡状态，并写一句话总结</p>
-      <label class="summary-label" for="checkin-summary">一句话总结</label>
-      <textarea id="checkin-summary" class="checkin-summary" placeholder="今天发生了什么？用一句话记录..." rows="3" maxlength="100"></textarea>
-      <div class="status-options">
-        <button class="status-btn success" data-status="success"><span class="status-icon success">✓</span><span>成功</span></button>
-        <button class="status-btn partial" data-status="partial"><span class="status-icon partial">○</span><span>差点</span></button>
-        <button class="status-btn fail" data-status="fail"><span class="status-icon fail">✗</span><span>失败</span></button>
+      <div class="session-tabs" role="tablist" aria-label="打卡场次">
+        <button type="button" class="session-tab active" data-session="noon" role="tab" aria-selected="true">午间</button>
+        <button type="button" class="session-tab" data-session="night" role="tab" aria-selected="false">晚间</button>
       </div>
-      <button id="clear-status" class="btn-clear">清除记录</button>
-      <button id="close-modal" class="btn-close">关闭</button>
+      <div class="status-options">
+        <button type="button" class="status-btn success" data-status="success"><span class="status-icon success">✓</span><span>守住了</span></button>
+        <button type="button" class="status-btn partial" data-status="partial"><span class="status-icon partial">○</span><span>差点犯</span></button>
+        <button type="button" class="status-btn fail" data-status="fail"><span class="status-icon fail">✗</span><span>没守住</span></button>
+      </div>
+      <p id="status-encourage-hint" class="status-encourage-hint hidden" aria-live="polite"></p>
+      <div id="checkin-summary-section" class="checkin-summary-section">
+        <label class="summary-label" for="checkin-summary">一句话总结</label>
+        <textarea id="checkin-summary" class="checkin-summary" placeholder="今天发生了什么？用一句话记录..." rows="3" maxlength="100"></textarea>
+      </div>
+      <div id="relapse-review-section" class="relapse-review-section hidden">
+        <p class="relapse-review-title">轻量复盘（可选）</p>
+        <label class="summary-label" for="relapse-trigger">诱因</label>
+        <select id="relapse-trigger" class="relapse-select">
+          <option value="">不填写</option>
+          <option value="stress">压力</option>
+          <option value="boredom">无聊</option>
+          <option value="social">社交</option>
+          <option value="fatigue">疲劳</option>
+          <option value="other">其他</option>
+        </select>
+        <label class="summary-label" for="relapse-plan">明天一条小计划</label>
+        <input type="text" id="relapse-plan" class="relapse-plan-input" placeholder="例如：晚上十点去散步" maxlength="80" />
+      </div>
+      <button type="button" id="save-checkin-btn" class="btn-primary btn-save-checkin">保存并关闭</button>
+    </div>
+  </div>
+
+  <div id="delete-memo-modal" class="modal hidden" role="alertdialog" aria-modal="true" aria-labelledby="delete-memo-title">
+    <div class="modal-backdrop"></div>
+    <div class="modal-content confirm-modal-content">
+      <h3 id="delete-memo-title">删除备忘录</h3>
+      <p id="delete-memo-message" class="confirm-message"></p>
+      <div class="confirm-actions">
+        <button type="button" id="delete-memo-cancel-btn" class="btn-close">取消</button>
+        <button type="button" id="delete-memo-confirm-btn" class="btn-primary btn-danger">删除</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="celebration-toast" class="celebration-toast hidden" role="status" aria-live="polite"></div>
+
+  <div id="milestone-modal" class="milestone-modal hidden" role="dialog" aria-modal="true" aria-labelledby="milestone-title">
+    <div class="milestone-backdrop"></div>
+    <div class="milestone-card">
+      <p class="milestone-badge">里程碑</p>
+      <h3 id="milestone-title" class="milestone-title"></h3>
+      <p id="milestone-body" class="milestone-body"></p>
+      <button type="button" id="milestone-dismiss" class="btn-primary milestone-dismiss">继续</button>
     </div>
   </div>
 
   <script src="quotes.js"></script>
+  <script src="success-quotes.js"></script>
+  <script src="ranks.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

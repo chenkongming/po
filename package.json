@@ -4,6 +4,7 @@
   "description": "365.dev - 日历打卡应用",
   "scripts": {
     "copy-web": "copy-web.bat",
+    "export:quotes": "node scripts/export-quotes-json.js",
     "sync:icon": "node scripts/sync-icon-from-icons.js",
     "generate:icons": "npm run sync:icon && node node_modules/@capacitor/assets/bin/capacitor-assets generate --android --iconBackgroundColor \"#ffffff\" --iconBackgroundColorDark \"#1a1d23\"",
     "cap:sync": "npm run copy-web && npx cap sync android",
@@ -23,7 +24,10 @@
     "@capacitor/core": "^7.2.0"
   },
   "dependencies": {
+    "@capacitor/app": "^7.1.2",
     "@capacitor/filesystem": "^7.1.8",
+    "@capacitor/haptics": "^7.0.5",
+    "@capacitor/local-notifications": "^7.0.6",
     "@capacitor/share": "^7.0.4"
   }
 }
