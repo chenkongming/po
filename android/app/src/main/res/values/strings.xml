@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">行歌</string>
-    <string name="title_activity_main">行歌</string>
+    <string name="app_name">365.dev</string>
+    <string name="title_activity_main">365.dev</string>
     <string name="package_name">com.rigong.app</string>
     <string name="custom_url_scheme">com.rigong.app</string>
 </resources>

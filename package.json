@@ -1,9 +1,11 @@
 {
   "name": "rigong",
   "version": "1.0.0",
-  "description": "行歌 - 日历打卡应用",
+  "description": "365.dev - 日历打卡应用",
   "scripts": {
     "copy-web": "copy-web.bat",
+    "sync:icon": "node scripts/sync-icon-from-icons.js",
+    "generate:icons": "npm run sync:icon && node node_modules/@capacitor/assets/bin/capacitor-assets generate --android --iconBackgroundColor \"#ffffff\" --iconBackgroundColorDark \"#1a1d23\"",
     "cap:sync": "npm run copy-web && npx cap sync android",
     "cap:open": "npx cap open android",
     "android": "npx cap sync android && npx cap open android",

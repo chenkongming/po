@@ -1,14 +1,14 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="zh-CN" data-theme="light">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <meta name="theme-color" content="#c4713a">
+  <meta name="theme-color" content="#5a7fa8" id="meta-theme-color">
   <meta name="color-scheme" content="light">
-  <title>行歌</title>
+  <title>365.dev</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;500;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -45,18 +45,20 @@
 
       <section id="summary-panel" class="panel">
         <div class="panel-head">
-          <h2>打卡汇总</h2>
-          <p class="panel-subtitle" id="summary-subtitle">全部时间统计</p>
+          <h2>全年日历</h2>
+          <p class="panel-subtitle" id="summary-subtitle"></p>
         </div>
-        <div class="summary-period" id="summary-period">
-          <button type="button" class="period-btn active" data-period="all">全部</button>
-          <button type="button" class="period-btn" data-period="year">今年</button>
-          <button type="button" class="period-btn" data-period="month">本月</button>
+        <div class="year-calendar-section">
+          <div class="year-calendar-head" id="year-calendar-head"></div>
+          <p class="year-calendar-hint">点击日期打卡/编辑 · 长按已打卡日期可清空</p>
+          <div class="year-calendar" id="year-calendar"></div>
         </div>
-        <div class="summary-overview" id="summary-overview"></div>
-        <div class="summary-cards" id="summary-cards"></div>
-        <div class="summary-bar-wrap" id="summary-bar"></div>
-        <div class="summary-insight" id="summary-insight"></div>
+        <div class="summary-stats-block">
+          <div class="summary-overview" id="summary-overview"></div>
+          <div class="summary-cards" id="summary-cards"></div>
+          <div class="summary-bar-wrap" id="summary-bar"></div>
+          <div class="summary-insight" id="summary-insight"></div>
+        </div>
       </section>
 
       <section id="records-panel" class="panel">
@@ -107,17 +109,30 @@
     </nav>
 
     <section id="data-panel" class="data-panel hidden">
-      <div class="data-card">
+      <div class="settings-page">
         <button id="data-back-btn" class="btn-secondary data-back-btn">← 返回</button>
-        <h2>备份与恢复</h2>
-        <p class="data-desc">将所有打卡记录和备忘录导出为 JSON 文件，可在换设备或重装后恢复。</p>
-        <p class="data-stats" id="data-stats"></p>
-        <div class="data-actions">
-          <button id="export-data-btn" class="btn-primary">导出 JSON</button>
-          <button id="import-data-btn" class="btn-secondary">导入 JSON</button>
-          <input type="file" id="import-file-input" accept=".json,application/json" hidden />
-        </div>
-        <p class="data-hint">导入会覆盖当前全部数据，请先导出备份。</p>
+        <h2 class="settings-title">设置</h2>
+
+        <section class="settings-block">
+          <h3 class="settings-block-title">主题</h3>
+          <p class="settings-block-desc">默认蓝白；可切换深色模式</p>
+          <div class="theme-options" id="theme-options">
+            <button type="button" class="theme-option active" data-theme="light">蓝白</button>
+            <button type="button" class="theme-option" data-theme="dark">深色</button>
+          </div>
+        </section>
+
+        <section class="settings-block">
+          <h3 class="settings-block-title">备份与恢复</h3>
+          <p class="settings-block-desc">导出 JSON 可在换设备或重装后恢复数据</p>
+          <p class="data-stats" id="data-stats"></p>
+          <div class="data-actions">
+            <button id="export-data-btn" class="btn-primary">导出 JSON</button>
+            <button id="import-data-btn" class="btn-secondary">导入 JSON</button>
+            <input type="file" id="import-file-input" accept=".json,application/json" hidden />
+          </div>
+          <p class="data-hint">导入会覆盖当前全部数据，请先导出备份</p>
+        </section>
       </div>
     </section>
   </div>
@@ -126,8 +141,13 @@
     <div class="modal-backdrop"></div>
     <div class="modal-content memo-modal-content">
       <h3 id="memo-modal-title">新建备忘录</h3>
-      <p class="modal-hint">支持多行文字；# 标题、> 引用、- 列表</p>
-      <textarea id="memo-input" class="memo-input" placeholder="写下想记住的事..." rows="8"></textarea>
+      <p class="modal-hint memo-md-hint">Markdown：# 标题 · **粗体** · *斜体* · `代码` · &gt; 引用 · - 列表 · 1. 有序列表 · --- 分隔线</p>
+      <label class="memo-field-label" for="memo-input">内容</label>
+      <textarea id="memo-input" class="memo-input" placeholder="第一行作为标题&#10;&#10;# 小标题&#10;写正文，支持 **粗体** 和列表..." rows="6"></textarea>
+      <div class="memo-preview-wrap">
+        <p class="memo-preview-label">预览</p>
+        <div id="memo-preview" class="memo-body memo-preview"></div>
+      </div>
       <label class="memo-pin-label">
         <input type="checkbox" id="memo-pin" />
         <span>在列表中置顶</span>
@@ -136,8 +156,8 @@
         <button id="save-memo-btn" class="btn-primary">保存</button>
         <button id="cancel-memo-btn" class="btn-close">取消</button>
       </div>
-      </div>
     </div>
+  </div>
 
   <div id="checkin-modal" class="modal hidden">
     <div class="modal-backdrop"></div>

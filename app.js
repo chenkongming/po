@@ -2,10 +2,12 @@ const STORAGE_KEYS = {
   checkins: "calendar_checkins",
   memos: "calendar_memos",
   notes: "daily_notes",
+  theme: "app_theme",
 };
 
-const APP_NAME = "行歌";
+const APP_NAME = "365.dev";
 const BACKUP_VERSION = 1;
+const THEME_META = { light: "#5a7fa8", dark: "#0f1114" };
 
 const STATUS_MAP = {
   success: { icon: "✓", class: "success", label: "成功" },
@@ -14,6 +16,10 @@ const STATUS_MAP = {
 };
 
 const WEEKDAYS = ["日", "一", "二", "三", "四", "五", "六"];
+const MONTH_NAMES = [
+  "一月", "二月", "三月", "四月", "五月", "六月",
+  "七月", "八月", "九月", "十月", "十一月", "十二月",
+];
 
 // ===== 工具函数 =====
 function formatDateKey(year, month, day) {
@@ -95,6 +101,16 @@ function formatMemoTime(iso) {
   return `${y}年${m}月${d}日 ${h}:${min}`;
 }
 
+function formatInlineMarkdown(text) {
+  let html = escapeHtml(text);
+  html = html.replace(/`([^`]+)`/g, "<code class=\"memo-code\">$1</code>");
+  html = html.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
+  html = html.replace(/__(.+?)__/g, "<strong>$1</strong>");
+  html = html.replace(/\*([^*\n]+)\*/g, "<em>$1</em>");
+  html = html.replace(/_([^_\n]+)_/g, "<em>$1</em>");
+  return html;
+}
+
 function formatMemoContent(content, skipFirstLine = false) {
   let lines = content.split("\n");
   if (skipFirstLine && lines.filter((l) => l.trim()).length > 1) {
@@ -106,50 +122,77 @@ function formatMemoContent(content, skipFirstLine = false) {
 
   let html = "";
   let inList = false;
+  let inOrderedList = false;
 
-  lines.forEach((line) => {
-    const trimmed = line.trim();
-    if (!trimmed) {
-      if (inList) {
-        html += "</ul>";
-        inList = false;
-      }
-      html += '<div class="memo-spacer"></div>';
-      return;
-    }
-
-    if (/^[-•*]\s/.test(trimmed)) {
-      if (inList) {
-        html += "</ul>";
-      } else {
-        html += '<ul class="memo-list">';
-      }
-      inList = true;
-      html += `<li><span class="memo-list-text">${escapeHtml(trimmed.replace(/^[-•*]\s/, ""))}</span></li>`;
-      return;
-    }
-
+  const closeLists = () => {
     if (inList) {
       html += "</ul>";
       inList = false;
     }
+    if (inOrderedList) {
+      html += "</ol>";
+      inOrderedList = false;
+    }
+  };
+
+  lines.forEach((line) => {
+    const trimmed = line.trim();
+    if (!trimmed) {
+      closeLists();
+      html += '<div class="memo-spacer"></div>';
+      return;
+    }
+
+    if (/^[-*_]{3,}$/.test(trimmed)) {
+      closeLists();
+      html += '<hr class="memo-hr" />';
+      return;
+    }
+
+    if (/^[-•*]\s/.test(trimmed)) {
+      if (inOrderedList) {
+        html += "</ol>";
+        inOrderedList = false;
+      }
+      if (!inList) {
+        html += '<ul class="memo-list">';
+        inList = true;
+      }
+      html += `<li><span class="memo-list-text">${formatInlineMarkdown(trimmed.replace(/^[-•*]\s/, ""))}</span></li>`;
+      return;
+    }
+
+    if (/^\d+\.\s/.test(trimmed)) {
+      if (inList) {
+        html += "</ul>";
+        inList = false;
+      }
+      if (!inOrderedList) {
+        html += '<ol class="memo-list memo-list-ordered">';
+        inOrderedList = true;
+      }
+      html += `<li><span class="memo-list-text">${formatInlineMarkdown(trimmed.replace(/^\d+\.\s+/, ""))}</span></li>`;
+      return;
+    }
+
+    closeLists();
 
     if (/^#{1,3}\s/.test(trimmed)) {
       const level = trimmed.match(/^#+/)[0].length;
       const text = trimmed.replace(/^#{1,3}\s/, "");
-      html += `<h4 class="memo-heading memo-heading-${level}">${escapeHtml(text)}</h4>`;
+      html += `<h4 class="memo-heading memo-heading-${level}">${formatInlineMarkdown(text)}</h4>`;
       return;
     }
 
     if (/^>\s/.test(trimmed)) {
-      html += `<blockquote class="memo-blockquote">${escapeHtml(trimmed.replace(/^>\s/, ""))}</blockquote>`;
+      html += `<blockquote class="memo-blockquote">${formatInlineMarkdown(trimmed.replace(/^>\s/, ""))}</blockquote>`;
       return;
     }
 
-    html += `<p class="memo-paragraph">${escapeHtml(trimmed)}</p>`;
+    html += `<p class="memo-paragraph">${formatInlineMarkdown(trimmed)}</p>`;
   });
 
-  if (inList) html += "</ul>";
+  closeLists();
   return html || '<p class="memo-empty-text">（空内容）</p>';
 }
 
@@ -222,7 +265,38 @@ const checkins = migrateCheckins(loadJSON(STORAGE_KEYS.checkins, {}));
 let memos = loadMemos();
 let editingMemoId = null;
 
-let summaryPeriod = "all";
+let summaryYear = new Date().getFullYear();
+
+// ===== 主题 =====
+function loadTheme() {
+  const saved = localStorage.getItem(STORAGE_KEYS.theme);
+  return saved === "dark" ? "dark" : "light";
+}
+
+function applyTheme(theme) {
+  const t = theme === "dark" ? "dark" : "light";
+  document.documentElement.setAttribute("data-theme", t);
+  localStorage.setItem(STORAGE_KEYS.theme, t);
+  const meta = document.getElementById("meta-theme-color");
+  if (meta) meta.content = THEME_META[t];
+  document.querySelector("meta[name=color-scheme]")?.setAttribute(
+    "content",
+    t === "dark" ? "dark" : "light"
+  );
+  document.querySelectorAll(".theme-option").forEach((btn) => {
+    btn.classList.toggle("active", btn.dataset.theme === t);
+  });
+}
+
+function initTheme() {
+  applyTheme(loadTheme());
+}
+
+document.getElementById("theme-options").addEventListener("click", (e) => {
+  const btn = e.target.closest(".theme-option");
+  if (!btn) return;
+  applyTheme(btn.dataset.theme);
+});
 
 function getCheckinStats(period = "all", refDate = null) {
   const base = refDate || new Date();
@@ -250,11 +324,8 @@ function getCheckinStats(period = "all", refDate = null) {
   return { success, partial, fail, total, successRate };
 }
 
-function getSummaryPeriodLabel(period) {
-  const now = new Date();
-  if (period === "year") return `${now.getFullYear()} 年统计`;
-  if (period === "month") return `${now.getFullYear()} 年 ${now.getMonth() + 1} 月统计`;
-  return "全部时间统计";
+function getYearStats(year) {
+  return getCheckinStats("year", new Date(year, 0, 1));
 }
 
 function getSummaryInsight(stats) {
@@ -266,6 +337,10 @@ function getSummaryInsight(stats) {
 }
 
 // ===== 底部导航 =====
+function updateHeaderVisibility(tabName) {
+  document.getElementById("app-header").classList.toggle("header-hidden", tabName !== "calendar");
+}
+
 function switchTab(tabName) {
   document.querySelectorAll(".nav-item").forEach((item) => {
     item.classList.toggle("active", item.dataset.tab === tabName);
@@ -273,6 +348,8 @@ function switchTab(tabName) {
   document.querySelectorAll("#main-view .panel").forEach((panel) => {
     panel.classList.toggle("active", panel.id === `${tabName}-panel`);
   });
+
+  updateHeaderVisibility(tabName);
 
   if (tabName === "records") renderRecords();
   if (tabName === "memos") renderMemos();
@@ -299,6 +376,8 @@ function closeDataPanel() {
   document.getElementById("data-panel").classList.add("hidden");
   document.getElementById("main-view").classList.remove("hidden");
   document.getElementById("bottom-nav").classList.remove("hidden");
+  const activeTab = document.querySelector(".nav-item.active")?.dataset.tab || "calendar";
+  updateHeaderVisibility(activeTab);
 }
 
 document.getElementById("app-header").addEventListener("click", () => {
@@ -341,13 +420,9 @@ function renderHeaderQuote() {
 // ===== 日历模块 =====
 function renderCalendar() {
   const grid = document.getElementById("calendar-grid");
-  const monthNames = [
-    "一月", "二月", "三月", "四月", "五月", "六月",
-    "七月", "八月", "九月", "十月", "十一月", "十二月",
-  ];
 
   document.getElementById("month-title").textContent =
-    `${currentYear}年 ${monthNames[currentMonth]}`;
+    `${currentYear}年 ${MONTH_NAMES[currentMonth]}`;
 
   grid.innerHTML = "";
 
@@ -415,10 +490,10 @@ function renderMonthStats() {
 }
 
 function renderSummary() {
-  const stats = getCheckinStats(summaryPeriod);
-  const periodLabel = getSummaryPeriodLabel(summaryPeriod);
+  renderYearCalendar(summaryYear);
 
-  document.getElementById("summary-subtitle").textContent = periodLabel;
+  const stats = getYearStats(summaryYear);
+  document.getElementById("summary-subtitle").textContent = `${summaryYear} 年打卡统计`;
 
   const overviewEl = document.getElementById("summary-overview");
   if (!stats.total) {
@@ -431,81 +506,201 @@ function renderSummary() {
     document.getElementById("summary-cards").innerHTML = "";
     document.getElementById("summary-bar").innerHTML = "";
     document.getElementById("summary-insight").innerHTML = "";
-    return;
-  }
-
-  overviewEl.innerHTML = `
-    <div class="overview-ring">
-      <svg viewBox="0 0 120 120" class="ring-svg" aria-hidden="true">
-        <circle cx="60" cy="60" r="52" class="ring-bg"/>
-        <circle cx="60" cy="60" r="52" class="ring-progress"
-          stroke-dasharray="${(stats.successRate / 100) * 326.73} 326.73"/>
-      </svg>
-      <div class="overview-center">
-        <span class="overview-rate">${stats.successRate}%</span>
-        <span class="overview-label">成功率</span>
+  } else {
+    overviewEl.innerHTML = `
+      <div class="summary-flat-overview">
+        <div class="flat-stat highlight">
+          <span class="flat-stat-num">${stats.successRate}%</span>
+          <span class="flat-stat-label">成功率</span>
+        </div>
+        <div class="flat-stat">
+          <span class="flat-stat-num">${stats.total}</span>
+          <span class="flat-stat-label">总打卡</span>
+        </div>
       </div>
-    </div>
-    <div class="overview-meta">
-      <span class="overview-total">${stats.total}</span>
-      <span class="overview-total-label">次打卡</span>
-    </div>
-  `;
+    `;
 
-  document.getElementById("summary-cards").innerHTML = `
-    <article class="summary-card success">
-      <span class="summary-card-icon status-icon success">✓</span>
-      <span class="summary-card-num">${stats.success}</span>
-      <span class="summary-card-label">成功</span>
-      <span class="summary-card-pct">${Math.round((stats.success / stats.total) * 100)}%</span>
-    </article>
-    <article class="summary-card partial">
-      <span class="summary-card-icon status-icon partial">○</span>
-      <span class="summary-card-num">${stats.partial}</span>
-      <span class="summary-card-label">差点</span>
-      <span class="summary-card-pct">${Math.round((stats.partial / stats.total) * 100)}%</span>
-    </article>
-    <article class="summary-card fail">
-      <span class="summary-card-icon status-icon fail">✗</span>
-      <span class="summary-card-num">${stats.fail}</span>
-      <span class="summary-card-label">失败</span>
-      <span class="summary-card-pct">${Math.round((stats.fail / stats.total) * 100)}%</span>
-    </article>
-  `;
+    document.getElementById("summary-cards").innerHTML = `
+      <article class="summary-card success">
+        <span class="summary-card-num">${stats.success}</span>
+        <span class="summary-card-label">成功</span>
+      </article>
+      <article class="summary-card partial">
+        <span class="summary-card-num">${stats.partial}</span>
+        <span class="summary-card-label">差点</span>
+      </article>
+      <article class="summary-card fail">
+        <span class="summary-card-num">${stats.fail}</span>
+        <span class="summary-card-label">失败</span>
+      </article>
+    `;
 
-  const successPct = (stats.success / stats.total) * 100;
-  const partialPct = (stats.partial / stats.total) * 100;
-  const failPct = (stats.fail / stats.total) * 100;
+    const successPct = (stats.success / stats.total) * 100;
+    const partialPct = (stats.partial / stats.total) * 100;
+    const failPct = (stats.fail / stats.total) * 100;
 
-  document.getElementById("summary-bar").innerHTML = `
-    <p class="summary-bar-title">占比分布</p>
-    <div class="summary-bar">
-      <span class="bar-seg success" style="width:${successPct}%"></span>
-      <span class="bar-seg partial" style="width:${partialPct}%"></span>
-      <span class="bar-seg fail" style="width:${failPct}%"></span>
-    </div>
-    <div class="summary-bar-legend">
-      <span><i class="dot success"></i>成功 ${stats.success}</span>
-      <span><i class="dot partial"></i>差点 ${stats.partial}</span>
-      <span><i class="dot fail"></i>失败 ${stats.fail}</span>
-    </div>
-  `;
+    document.getElementById("summary-bar").innerHTML = `
+      <p class="summary-bar-title">占比分布</p>
+      <div class="summary-bar">
+        <span class="bar-seg success" style="width:${successPct}%"></span>
+        <span class="bar-seg partial" style="width:${partialPct}%"></span>
+        <span class="bar-seg fail" style="width:${failPct}%"></span>
+      </div>
+      <div class="summary-bar-legend">
+        <span><i class="dot success"></i>成功 ${stats.success}</span>
+        <span><i class="dot partial"></i>差点 ${stats.partial}</span>
+        <span><i class="dot fail"></i>失败 ${stats.fail}</span>
+      </div>
+    `;
 
-  document.getElementById("summary-insight").innerHTML = `
-    <p class="insight-text">${getSummaryInsight(stats)}</p>
-  `;
+    document.getElementById("summary-insight").innerHTML = `
+      <p class="insight-text">${getSummaryInsight(stats)}</p>
+    `;
+  }
 }
 
-document.getElementById("summary-period").addEventListener("click", (e) => {
-  const btn = e.target.closest(".period-btn");
-  if (!btn) return;
-  summaryPeriod = btn.dataset.period;
-  document.querySelectorAll(".period-btn").forEach((item) => {
-    item.classList.toggle("active", item === btn);
+function updateModalStatusSelection(status) {
+  document.querySelectorAll(".status-btn").forEach((btn) => {
+    const active = btn.dataset.status === status;
+    btn.classList.toggle("selected", active);
   });
-  renderSummary();
-});
+}
 
+function openModal(dateKey) {
+  selectedDateKey = dateKey;
+  const { year, month, day } = parseDateKey(dateKey);
+  const record = getCheckinRecord(dateKey);
+
+  document.getElementById("modal-date").textContent = `${year}年${month + 1}月${day}日`;
+  summaryInput.value = record?.summary || "";
+  updateModalStatusSelection(record?.status || "success");
+  modal.classList.remove("hidden");
+  summaryInput.focus();
+}
+
+function closeModal() {
+  modal.classList.add("hidden");
+  selectedDateKey = null;
+  summaryInput.value = "";
+  document.querySelectorAll(".status-btn").forEach((btn) => btn.classList.remove("selected"));
+}
+
+function clearCheckinAt(dateKey) {
+  if (!getCheckinRecord(dateKey)) return;
+  const { year, month, day } = parseDateKey(dateKey);
+  if (!confirm(`确定清除 ${year}年${month + 1}月${day}日的打卡记录？`)) return;
+
+  delete checkins[dateKey];
+  saveJSON(STORAGE_KEYS.checkins, checkins);
+  renderCalendar();
+  renderSummary();
+}
+
+function buildMiniDayHtml(year, month, day, todayKey) {
+  const dateKey = formatDateKey(year, month, day);
+  const record = getCheckinRecord(dateKey);
+  let cls = "mini-day";
+  if (dateKey === todayKey) cls += " today";
+  if (record?.status) cls += ` status-${record.status}`;
+
+  const statusHtml = record?.status
+    ? `<span class="mini-day-icon status-icon ${STATUS_MAP[record.status].class}">${STATUS_MAP[record.status].icon}</span>`
+    : "";
+
+  const label = record?.status
+    ? `${month + 1}月${day}日 ${STATUS_MAP[record.status].label}`
+    : `${month + 1}月${day}日`;
+
+  return `<button type="button" class="${cls}" data-date="${dateKey}" aria-label="${label}">
+    <span class="mini-day-num">${day}</span>${statusHtml}
+  </button>`;
+}
+
+function bindMiniDayEvents(container) {
+  container.querySelectorAll(".mini-day[data-date]").forEach((btn) => {
+    const dateKey = btn.dataset.date;
+    let pressTimer = null;
+    let longPressed = false;
+
+    const cancelPress = () => {
+      if (pressTimer) {
+        clearTimeout(pressTimer);
+        pressTimer = null;
+      }
+    };
+
+    const startPress = () => {
+      longPressed = false;
+      cancelPress();
+      if (!getCheckinRecord(dateKey)) return;
+      pressTimer = setTimeout(() => {
+        longPressed = true;
+        clearCheckinAt(dateKey);
+      }, 550);
+    };
+
+    btn.addEventListener("mousedown", startPress);
+    btn.addEventListener("touchstart", startPress, { passive: true });
+    btn.addEventListener("mouseup", cancelPress);
+    btn.addEventListener("mouseleave", cancelPress);
+    btn.addEventListener("touchend", cancelPress);
+    btn.addEventListener("touchcancel", cancelPress);
+
+    btn.addEventListener("click", (e) => {
+      if (longPressed) {
+        e.preventDefault();
+        longPressed = false;
+        return;
+      }
+      openModal(dateKey);
+    });
+  });
+}
+
+function renderYearCalendar(year) {
+  const headEl = document.getElementById("year-calendar-head");
+  const container = document.getElementById("year-calendar");
+  const todayKey = getTodayKey();
+  const weekdayLabels = WEEKDAYS.map((d) => `<span>${d}</span>`).join("");
+
+  headEl.innerHTML = `
+    <h3 class="year-calendar-title">${year} 年全年</h3>
+    <div class="year-nav">
+      <button type="button" class="btn-icon btn-icon-sm" id="summary-year-prev" aria-label="上一年">‹</button>
+      <span class="year-nav-label">${year}</span>
+      <button type="button" class="btn-icon btn-icon-sm" id="summary-year-next" aria-label="下一年">›</button>
+    </div>
+  `;
+
+  let gridHtml = '<div class="year-grid">';
+  for (let month = 0; month < 12; month++) {
+    gridHtml += `<article class="mini-month">
+      <p class="mini-month-title">${MONTH_NAMES[month]}</p>
+      <div class="mini-weekdays">${weekdayLabels}</div>
+      <div class="mini-days">`;
+    const firstDay = new Date(year, month, 1).getDay();
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    for (let i = 0; i < firstDay; i++) {
+      gridHtml += '<span class="mini-day empty"></span>';
+    }
+    for (let day = 1; day <= daysInMonth; day++) {
+      gridHtml += buildMiniDayHtml(year, month, day, todayKey);
+    }
+    gridHtml += "</div></article>";
+  }
+  gridHtml += "</div>";
+  container.innerHTML = gridHtml;
+  bindMiniDayEvents(container);
+
+  document.getElementById("summary-year-prev")?.addEventListener("click", () => {
+    summaryYear -= 1;
+    renderSummary();
+  });
+  document.getElementById("summary-year-next")?.addEventListener("click", () => {
+    summaryYear += 1;
+    renderSummary();
+  });
+}
 
 document.getElementById("prev-month").addEventListener("click", () => {
   currentMonth--;
@@ -528,23 +723,6 @@ document.getElementById("next-month").addEventListener("click", () => {
 // ===== 打卡弹窗 =====
 const modal = document.getElementById("checkin-modal");
 const summaryInput = document.getElementById("checkin-summary");
-
-function openModal(dateKey) {
-  selectedDateKey = dateKey;
-  const { year, month, day } = parseDateKey(dateKey);
-  const record = getCheckinRecord(dateKey);
-
-  document.getElementById("modal-date").textContent = `${year}年${month + 1}月${day}日`;
-  summaryInput.value = record?.summary || "";
-  modal.classList.remove("hidden");
-  summaryInput.focus();
-}
-
-function closeModal() {
-  modal.classList.add("hidden");
-  selectedDateKey = null;
-  summaryInput.value = "";
-}
 
 function saveCheckin(status) {
   if (!selectedDateKey) return;
@@ -663,6 +841,15 @@ function renderMemos() {
   listEl.innerHTML = sorted.map((memo) => renderMemoCard(memo)).join("");
 }
 
+function updateMemoPreview() {
+  const previewEl = document.getElementById("memo-preview");
+  if (!previewEl) return;
+  const content = memoInput.value.trim();
+  previewEl.innerHTML = content
+    ? formatMemoContent(content, false)
+    : '<p class="memo-empty-text">输入内容后将在此显示 Markdown 排版效果</p>';
+}
+
 function openMemoModal(memoId = null) {
   editingMemoId = memoId;
   const memo = memos.find((item) => item.id === memoId);
@@ -670,6 +857,7 @@ function openMemoModal(memoId = null) {
   memoModalTitle.textContent = memo ? "编辑备忘录" : "新建备忘录";
   memoInput.value = memo?.content || "";
   memoPinInput.checked = !!memo?.pinned;
+  updateMemoPreview();
   memoModal.classList.remove("hidden");
   memoInput.focus();
 }
@@ -679,6 +867,7 @@ function closeMemoModal() {
   editingMemoId = null;
   memoInput.value = "";
   memoPinInput.checked = false;
+  updateMemoPreview();
 }
 
 function saveMemo() {
@@ -723,6 +912,7 @@ document.getElementById("new-memo-btn").addEventListener("click", () => openMemo
 document.getElementById("save-memo-btn").addEventListener("click", saveMemo);
 document.getElementById("cancel-memo-btn").addEventListener("click", closeMemoModal);
 memoModal.querySelector(".modal-backdrop").addEventListener("click", closeMemoModal);
+memoInput.addEventListener("input", updateMemoPreview);
 
 document.getElementById("memos-list").addEventListener("click", handleMemoAction);
 
@@ -806,9 +996,15 @@ function downloadJsonInBrowser(json, fileName) {
   URL.revokeObjectURL(url);
 }
 
+function getCapacitorPlugin(cap, name) {
+  if (cap.Plugins?.[name]) return cap.Plugins[name];
+  if (typeof cap.registerPlugin === "function") return cap.registerPlugin(name);
+  throw new Error(`${name} 插件不可用，请重新安装 App`);
+}
+
 async function exportJsonNative(Capacitor, json, fileName) {
-  const Filesystem = Capacitor.registerPlugin("Filesystem");
-  const Share = Capacitor.registerPlugin("Share");
+  const Filesystem = getCapacitorPlugin(Capacitor, "Filesystem");
+  const Share = getCapacitorPlugin(Capacitor, "Share");
 
   await Filesystem.writeFile({
     path: fileName,
@@ -916,5 +1112,6 @@ document.getElementById("import-file-input").addEventListener("change", (e) => {
 });
 
 // ===== 初始化 =====
+initTheme();
 renderHeaderQuote();
 renderCalendar();
