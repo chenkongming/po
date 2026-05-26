@@ -22,8 +22,8 @@
       </button>
       <div class="header-rank" id="header-rank" aria-live="polite"></div>
       <div class="header-streak" id="header-streak" aria-live="polite"></div>
-      <p class="header-today-win hidden" id="header-today-win" aria-live="polite"></p>
-      <blockquote class="header-quote" id="header-quote"></blockquote>
+      <div class="header-rank-progress" id="header-rank-progress" aria-live="polite"></div>
+      <blockquote class="header-quote header-quote--ambient" id="header-quote"></blockquote>
       <p class="header-author" id="header-author"></p>
     </header>
 
@@ -54,6 +54,9 @@
             <div id="calendar-grid" class="calendar-grid"></div>
           </div>
           <div class="month-stats" id="month-stats"></div>
+          <p class="month-encourage" id="month-encourage" aria-live="polite"></p>
+          <div class="calendar-achievements" id="calendar-achievements"></div>
+          <div class="calendar-report" id="calendar-report"></div>
         </div>
       </section>
 
@@ -129,7 +132,7 @@
         <div class="memos-header">
           <div class="panel-head panel-head-row">
             <div class="panel-head-main">
-              <h2>备忘录</h2>
+              <h2>提示</h2>
               <p class="panel-subtitle memos-count" id="memos-count"></p>
             </div>
           </div>
@@ -140,17 +143,17 @@
     </main>
 
     <nav class="bottom-nav" id="bottom-nav" aria-label="主导航">
-      <button type="button" class="nav-item active" data-tab="calendar" aria-label="日历">
+      <button type="button" class="nav-item active" data-tab="calendar" aria-label="打卡">
         <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
           <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
         </svg>
-        <span class="nav-label">日历</span>
+        <span class="nav-label">打卡</span>
       </button>
-      <button type="button" class="nav-item" data-tab="summary" aria-label="全年">
+      <button type="button" class="nav-item" data-tab="memos" aria-label="提示">
         <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-          <line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>
+          <path d="M9 18h6"/><path d="M10 22h4"/><path d="M12 2a7 7 0 0 0-4 12.7V17h8v-2.3A7 7 0 0 0 12 2z"/>
         </svg>
-        <span class="nav-label">全年</span>
+        <span class="nav-label">提示</span>
       </button>
       <button type="button" class="nav-item" data-tab="records" aria-label="记录">
         <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
@@ -158,11 +161,11 @@
         </svg>
         <span class="nav-label">记录</span>
       </button>
-      <button type="button" class="nav-item" data-tab="memos" aria-label="备忘录">
+      <button type="button" class="nav-item" data-tab="summary" aria-label="全年">
         <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-          <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+          <line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>
         </svg>
-        <span class="nav-label">备忘</span>
+        <span class="nav-label">全年</span>
       </button>
     </nav>
 
@@ -171,10 +174,21 @@
         <button id="data-back-btn" class="btn-secondary data-back-btn">← 返回</button>
 
         <section class="settings-block">
+          <h3 class="settings-block-title">鼓励风格</h3>
+          <p class="settings-block-desc">选择打卡反馈与文案的强度，强鼓励模式会更多赞美与庆祝</p>
+          <div class="encouragement-options" id="encouragement-options">
+            <button type="button" class="encouragement-option" data-level="gentle">温和</button>
+            <button type="button" class="encouragement-option" data-level="standard">标准</button>
+            <button type="button" class="encouragement-option active" data-level="strong">强鼓励</button>
+          </div>
+        </section>
+
+        <section class="settings-block">
           <h3 class="settings-block-title">主题</h3>
-          <p class="settings-block-desc">雾蓝更柔和；也可切换松绿、沙棕或深色风格</p>
+          <p class="settings-block-desc">雾蓝更柔和；晨曦金更有能量；也可切换松绿、沙棕或深色风格</p>
           <div class="theme-options" id="theme-options">
             <button type="button" class="theme-option active" data-theme="light">雾蓝</button>
+            <button type="button" class="theme-option" data-theme="dawn">晨曦金</button>
             <button type="button" class="theme-option" data-theme="sage">松绿</button>
             <button type="button" class="theme-option" data-theme="sand">沙棕</button>
             <button type="button" class="theme-option" data-theme="dark">深色</button>
@@ -215,6 +229,17 @@
             <input type="file" id="import-file-input" accept=".json,application/json" hidden />
           </div>
           <p class="data-hint">导入会覆盖当前全部数据，请先导出备份</p>
+        </section>
+      </div>
+    </section>
+
+    <section id="achievement-panel" class="overlay-panel hidden">
+      <div class="settings-page">
+        <button type="button" id="achievement-back-btn" class="btn-secondary data-back-btn">← 返回</button>
+        <section class="settings-block">
+          <h3 class="settings-block-title">全部成就</h3>
+          <p class="settings-block-desc">守住、复盘、提示记录都会在这里留下勋章</p>
+          <div class="achievement-list" id="achievement-list"></div>
         </section>
       </div>
     </section>

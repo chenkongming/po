@@ -34,6 +34,44 @@ function getRankRangeLabel(rank) {
   return `${rank.min}–${rank.max} 天`;
 }
 
+function getNextRank(days) {
+  const current = getRankForStreak(days);
+  if (current.tier >= MILITARY_RANKS.length) return null;
+  return MILITARY_RANKS.find((r) => r.tier === current.tier + 1) || null;
+}
+
+function getRankProgress(days) {
+  const rank = getRankForStreak(days);
+  const d = Math.max(0, days || 0);
+  if (rank.max === Infinity) {
+    return { rank, next: null, remaining: 0, percent: 100 };
+  }
+  const span = rank.max - rank.min + 1;
+  const progress = Math.max(0, d - rank.min);
+  const percent = Math.min(100, Math.round((progress / span) * 100));
+  const next = getNextRank(d);
+  const remaining = next ? Math.max(0, next.min - d) : 0;
+  return { rank, next, remaining, percent };
+}
+
+function renderRankProgressHtml(streak) {
+  const { rank, next, remaining, percent } = getRankProgress(streak);
+  if (!next) {
+    return `<p class="rank-progress-label">已达最高军衔 · ${rank.name}</p>`;
+  }
+  return `
+    <div class="rank-progress-wrap">
+      <div class="rank-progress-head">
+        <span class="rank-progress-text">距 ${next.name} 还差 ${remaining} 天</span>
+        <span class="rank-progress-pct">${percent}%</span>
+      </div>
+      <div class="rank-progress-track" role="progressbar" aria-valuenow="${percent}" aria-valuemin="0" aria-valuemax="100">
+        <span class="rank-progress-fill" style="width:${percent}%"></span>
+      </div>
+    </div>
+  `;
+}
+
 function rankStar(cx, cy, r, fill) {
   const points = [];
   for (let i = 0; i < 10; i++) {
@@ -149,7 +187,8 @@ function renderHeaderRankHtml(streak) {
 
 function renderRankGuideListHtml(streak) {
   const current = getRankForStreak(streak);
-  return MILITARY_RANKS.map((rank) => {
+  const progressHtml = renderRankProgressHtml(streak);
+  const items = MILITARY_RANKS.map((rank) => {
     const isCurrent = rank.tier === current.tier;
     return `
       <article class="rank-guide-item${isCurrent ? " is-current" : ""}" style="--rank-color: ${rank.color}" data-tier="${rank.tier}">
@@ -162,4 +201,5 @@ function renderRankGuideListHtml(streak) {
       </article>
     `;
   }).join("");
+  return `${progressHtml}<div class="rank-guide-list-items">${items}</div>`;
 }

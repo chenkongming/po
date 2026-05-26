@@ -3,22 +3,27 @@ const STORAGE_KEYS = {
   memos: "calendar_memos",
   notes: "daily_notes",
   theme: "app_theme",
+  encouragementLevel: "encouragement_level",
+  shownAchievements: "shown_achievements",
   summaryStatsExpanded: "summary_stats_expanded",
   recordsFiltersExpanded: "records_filters_expanded",
   notifications: "habit_notifications",
 };
 
 const APP_NAME = "365.dev";
-const BACKUP_VERSION = 3;
+const BACKUP_VERSION = 4;
 const THEME_META = {
   light: "#5c7289",
+  dawn: "#c4843a",
   dark: "#0f1114",
   sage: "#5a8a6a",
   sand: "#9a8060",
   ink: "#2a3544",
   dusk: "#3d2f3a",
 };
-const THEME_IDS = ["light", "dark", "sage", "sand", "ink", "dusk"];
+const THEME_IDS = ["light", "dawn", "dark", "sage", "sand", "ink", "dusk"];
+const DEFAULT_ENCOURAGEMENT_LEVEL = "strong";
+const STREAK_MILESTONE_DAYS = [7, 14, 30, 60, 90];
 
 const STATUS_MAP = {
   success: { icon: "✓", class: "success", label: "守住了" },
@@ -41,8 +46,8 @@ const DEFAULT_NOTIFICATIONS = {
   time2: "23:00",
 };
 
-const NOTIFY_BODY_NOON = "午间打卡——守住了就点「守住了」。";
-const NOTIFY_BODY_NIGHT = "晚间打卡——记一下今天，守住了就点「守住了」。";
+const NOTIFY_BODY_NOON_FALLBACK = "午间打卡——守住了就点「守住了」。";
+const NOTIFY_BODY_NIGHT_FALLBACK = "晚间打卡——记一下今天，守住了就点「守住了」。";
 
 const SESSION_IDS = ["noon", "night"];
 const SESSION_META = {
@@ -346,6 +351,83 @@ function pickFromArray(arr, seed) {
   return arr[Math.floor(Math.random() * arr.length)];
 }
 
+function getEncouragementLevel() {
+  const level = loadJSON(STORAGE_KEYS.encouragementLevel, DEFAULT_ENCOURAGEMENT_LEVEL);
+  return ENCOURAGEMENT_LEVELS.includes(level) ? level : DEFAULT_ENCOURAGEMENT_LEVEL;
+}
+
+function getEncPack() {
+  return getEncouragementPack(getEncouragementLevel());
+}
+
+function pickEnc(key, seed) {
+  const pack = getEncPack();
+  const val = pack[key];
+  if (Array.isArray(val)) return pickFromArray(val, seed);
+  return val || "";
+}
+
+function getEncSummaryPlaceholder(status) {
+  return getEncPack().SUMMARY_PLACEHOLDERS?.[status] || "今天发生了什么？用一句话记录...";
+}
+
+function getEncMilestoneMessage(milestone) {
+  const pack = getEncPack();
+  if (milestone.kind === "record") return pack.MILESTONE_MESSAGES.record;
+  return pack.MILESTONE_MESSAGES[milestone.days];
+}
+
+function isDayDoubleSuccess(dateKey) {
+  const day = getDayRecord(dateKey);
+  return SESSION_IDS.every((s) => day[s]?.status === "success");
+}
+
+function countDoubleWinDays() {
+  let count = 0;
+  Object.keys(checkins).forEach((key) => {
+    if (isDayDoubleSuccess(key)) count++;
+  });
+  return count;
+}
+
+function getMonthSoberDayCount(year, month) {
+  const days = new Set();
+  iterateSessionRecords((key, _session, rec) => {
+    const p = parseDateKey(key);
+    if (p.year !== year || p.month !== month) return;
+    if (rec.status === "success") days.add(key);
+  });
+  return days.size;
+}
+
+function getMonthSuccessRate(year, month) {
+  let success = 0;
+  let total = 0;
+  iterateSessionRecords((key, _session, rec) => {
+    const p = parseDateKey(key);
+    if (p.year !== year || p.month !== month) return;
+    total++;
+    if (rec.status === "success") success++;
+  });
+  return total ? Math.round((success / total) * 100) : 0;
+}
+
+function getWeekStats(refDate = new Date()) {
+  const end = new Date(refDate.getFullYear(), refDate.getMonth(), refDate.getDate());
+  const start = new Date(end);
+  start.setDate(start.getDate() - 6);
+  let success = 0;
+  let total = 0;
+  iterateSessionRecords((key, _session, rec) => {
+    const p = parseDateKey(key);
+    const d = new Date(p.year, p.month, p.day);
+    if (d < start || d > end) return;
+    total++;
+    if (rec.status === "success") success++;
+  });
+  return { success, total, rate: total ? Math.round((success / total) * 100) : 0 };
+}
+
 function getTotalSuccessCount() {
   let count = 0;
   iterateSessionRecords((_key, _session, rec) => {
@@ -388,21 +470,22 @@ function getStreakAsOfDate(dateKey) {
 }
 
 function getStreakHint(current, longest) {
-  if (dayIsRelapse(getTodayKey())) {
-    return "今天没守住也没关系，明天可以重新来";
-  }
-  if (current >= 90) return "三个月级的坚持，默认选项已经换了";
-  if (current >= 60) return "两个月，新常态正在形成";
-  if (current >= 30) return "一个月，你在用事实证明自己";
-  if (current >= 14) return "两周了，这已经不是运气";
-  if (current >= 7) return "完整一周，大脑开始认这条新路";
-  if (current >= 2) return `第 ${current} 天，每一天都在重写默认选项`;
-  if (current === 1) return "Day 1 也是胜利，今天开始了";
-  if (current === 0 && longest > 0) return "随时可以重新开始 Day 1";
-  if (current === longest && current >= 3) {
-    return `平了个人纪录 ${longest} 天，稳住就是进步`;
-  }
-  return "守住一天，就多一天自由";
+  const h = getEncPack().STREAK_HINTS;
+  if (dayIsRelapse(getTodayKey())) return h.relapse;
+  if (current >= 90) return h.d90;
+  if (current >= 60) return h.d60;
+  if (current >= 30) return h.d30;
+  if (current >= 14) return h.d14;
+  if (current >= 7) return h.d7;
+  if (current >= 2) return h.d2(current);
+  if (current === 1) return h.d1;
+  if (current === 0 && longest > 0) return h.restart;
+  if (current === longest && current >= 3) return h.record(longest);
+  return h.default;
+}
+
+function isStreakMilestoneDay(current) {
+  return STREAK_MILESTONE_DAYS.includes(current);
 }
 
 function detectSuccessMilestone(prevStreak, newStreak, prevLongest, newLongest) {
@@ -418,17 +501,184 @@ function detectSuccessMilestone(prevStreak, newStreak, prevLongest, newLongest) 
   return null;
 }
 
-function getEarnedAchievements() {
+function countSessionsByStatus(status) {
+  let count = 0;
+  iterateSessionRecords((_key, _session, rec) => {
+    if (rec.status === status) count++;
+  });
+  return count;
+}
+
+function countSessionSuccessBySlot(sessionId) {
+  let count = 0;
+  iterateSessionRecords((_key, session, rec) => {
+    if (session === sessionId && rec.status === "success") count++;
+  });
+  return count;
+}
+
+function getWeekPerfectRate() {
+  const week = getWeekStats();
+  return week;
+}
+
+function countTotalSessions() {
+  let count = 0;
+  iterateSessionRecords(() => {
+    count++;
+  });
+  return count;
+}
+
+function getYearSuccessCount(year) {
+  let count = 0;
+  iterateSessionRecords((key, _session, rec) => {
+    if (rec.status !== "success") return;
+    if (parseDateKey(key).year === year) count++;
+  });
+  return count;
+}
+
+function countPinnedMemos() {
+  return memos.filter((m) => m.pinned).length;
+}
+
+function getAchievementCheerLine(earnedCount, total) {
+  if (earnedCount === 0) return "第一枚勋章等你来拿，今天就有机会解锁！";
+  if (earnedCount < 5) return "已经上路了，每一枚都在证明你在变强。";
+  if (earnedCount < 15) return "战绩亮眼！继续解锁更多高光时刻。";
+  if (earnedCount < total * 0.5) return "坚持正在变成可见的成果，继续冲！";
+  return "你是真正的长期主义者，太了不起了！";
+}
+
+function getAchievementsList() {
   const longest = getLongestStreak();
+  const current = getCurrentStreak();
   const totalSuccess = getTotalSuccessCount();
+  const doubleWinDays = countDoubleWinDays();
+  const partialCount = countSessionsByStatus("partial");
+  const failCount = countSessionsByStatus("fail");
+  const noonSuccess = countSessionSuccessBySlot("noon");
+  const nightSuccess = countSessionSuccessBySlot("night");
+  const memoCount = memos.length;
+  const pinnedMemos = countPinnedMemos();
+  const totalSessions = countTotalSessions();
+  const now = new Date();
+  const year = now.getFullYear();
+  const monthRate = getMonthSuccessRate(year, now.getMonth());
+  const monthSoberDays = getMonthSoberDayCount(year, now.getMonth());
+  const week = getWeekPerfectRate();
+  const rankTier = getRankForStreak(longest).tier;
+  const yearSuccess = getYearSuccessCount(year);
+
   return [
-    { label: "首次守住", earned: totalSuccess >= 1 },
-    { label: "连续 7 天", earned: longest >= 7 },
-    { label: "连续 30 天", earned: longest >= 30 },
-    { label: "连续 90 天", earned: longest >= 90 },
-    { label: "累计守住 10 次", earned: totalSuccess >= 10 },
-    { label: "累计守住 50 次", earned: totalSuccess >= 50 },
+    { id: "first", label: "首次守住", desc: "完成第一次「守住了」打卡", earned: totalSuccess >= 1 },
+    { id: "double", label: "首次双场全胜", desc: "同一天午间与晚间都守住", earned: doubleWinDays >= 1 },
+    { id: "double3", label: "3 天双场全胜", desc: "累计 3 天双场全胜", earned: doubleWinDays >= 3 },
+    { id: "double7", label: "7 天双场全胜", desc: "累计 7 天双场全胜", earned: doubleWinDays >= 7 },
+    { id: "double14", label: "14 天双场全胜", desc: "累计 14 天双场全胜", earned: doubleWinDays >= 14 },
+    { id: "double30", label: "30 天双场全胜", desc: "累计 30 天双场全胜", earned: doubleWinDays >= 30 },
+    { id: "double60", label: "60 天双场全胜", desc: "累计 60 天双场全胜", earned: doubleWinDays >= 60 },
+    { id: "streak3", label: "连续 3 天", desc: "连续清醒达到 3 天", earned: longest >= 3 },
+    { id: "streak7", label: "连续 7 天", desc: "连续清醒达到 7 天", earned: longest >= 7 },
+    { id: "streak14", label: "连续 14 天", desc: "连续清醒达到 14 天", earned: longest >= 14 },
+    { id: "streak21", label: "连续 21 天", desc: "连续清醒达到 21 天", earned: longest >= 21 },
+    { id: "streak30", label: "连续 30 天", desc: "连续清醒达到 30 天", earned: longest >= 30 },
+    { id: "streak60", label: "连续 60 天", desc: "连续清醒达到 60 天", earned: longest >= 60 },
+    { id: "streak90", label: "连续 90 天", desc: "连续清醒达到 90 天", earned: longest >= 90 },
+    { id: "streak180", label: "连续 180 天", desc: "连续清醒达到 180 天", earned: longest >= 180 },
+    { id: "streak365", label: "连续 365 天", desc: "连续清醒达到一整年", earned: longest >= 365 },
+    { id: "total5", label: "累计守住 5 次", desc: "累计 5 次守住打卡", earned: totalSuccess >= 5 },
+    { id: "total10", label: "累计守住 10 次", desc: "累计 10 次守住打卡", earned: totalSuccess >= 10 },
+    { id: "total25", label: "累计守住 25 次", desc: "累计 25 次守住打卡", earned: totalSuccess >= 25 },
+    { id: "total50", label: "累计守住 50 次", desc: "累计 50 次守住打卡", earned: totalSuccess >= 50 },
+    { id: "total100", label: "累计守住 100 次", desc: "累计 100 次守住打卡", earned: totalSuccess >= 100 },
+    { id: "total200", label: "累计守住 200 次", desc: "累计 200 次守住打卡", earned: totalSuccess >= 200 },
+    { id: "total300", label: "累计守住 300 次", desc: "累计 300 次守住打卡", earned: totalSuccess >= 300 },
+    { id: "total500", label: "累计守住 500 次", desc: "累计 500 次守住打卡", earned: totalSuccess >= 500 },
+    { id: "noon10", label: "午间守住 10 次", desc: "午间场次累计守住 10 次", earned: noonSuccess >= 10 },
+    { id: "noon25", label: "午间守住 25 次", desc: "午间场次累计守住 25 次", earned: noonSuccess >= 25 },
+    { id: "noon50", label: "午间守住 50 次", desc: "午间场次累计守住 50 次", earned: noonSuccess >= 50 },
+    { id: "night10", label: "晚间守住 10 次", desc: "晚间场次累计守住 10 次", earned: nightSuccess >= 10 },
+    { id: "night25", label: "晚间守住 25 次", desc: "晚间场次累计守住 25 次", earned: nightSuccess >= 25 },
+    { id: "night50", label: "晚间守住 50 次", desc: "晚间场次累计守住 50 次", earned: nightSuccess >= 50 },
+    { id: "partial1", label: "首次差点犯", desc: "诚实记录第一次「差点犯」", earned: partialCount >= 1 },
+    { id: "partial10", label: "差点犯 10 次", desc: "累计记录 10 次差点犯，说明你在持续对抗", earned: partialCount >= 10 },
+    { id: "partial25", label: "差点犯 25 次", desc: "累计记录 25 次差点犯，你在场、你在战斗", earned: partialCount >= 25 },
+    { id: "fail1", label: "首次复盘", desc: "诚实记录第一次「没守住」并完成复盘", earned: failCount >= 1 },
+    { id: "fail5", label: "复盘 5 次", desc: "累计 5 次复盘，每一次都在帮下一次守住", earned: failCount >= 5 },
+    { id: "memo1", label: "首条提示", desc: "写下第一条提示备忘", earned: memoCount >= 1 },
+    { id: "memo5", label: "5 条提示", desc: "累计写下 5 条提示备忘", earned: memoCount >= 5 },
+    { id: "memo10", label: "10 条提示", desc: "累计写下 10 条提示备忘", earned: memoCount >= 10 },
+    { id: "memo20", label: "20 条提示", desc: "累计写下 20 条提示备忘", earned: memoCount >= 20 },
+    { id: "pin1", label: "首次置顶", desc: "置顶第一条重要提示", earned: pinnedMemos >= 1 },
+    { id: "pin3", label: "3 条置顶", desc: "累计置顶 3 条提示", earned: pinnedMemos >= 3 },
+    { id: "sessions30", label: "打卡 30 次", desc: "累计完成 30 次打卡（任意状态）", earned: totalSessions >= 30 },
+    { id: "sessions100", label: "打卡 100 次", desc: "累计完成 100 次打卡（任意状态）", earned: totalSessions >= 100 },
+    { id: "sessions200", label: "打卡 200 次", desc: "累计完成 200 次打卡（任意状态）", earned: totalSessions >= 200 },
+    { id: "month70", label: "本月守住率 70%", desc: "本月打卡守住率达到 70%", earned: monthRate >= 70 && monthSoberDays >= 4 },
+    { id: "month80", label: "本月守住率 80%", desc: "本月打卡守住率达到 80%", earned: monthRate >= 80 && monthSoberDays >= 5 },
+    { id: "month90", label: "本月守住率 90%", desc: "本月打卡守住率达到 90%", earned: monthRate >= 90 && monthSoberDays >= 8 },
+    { id: "month100", label: "本月全胜", desc: "本月全部打卡均为守住（至少 6 次）", earned: monthRate === 100 && monthSoberDays >= 6 },
+    { id: "week100", label: "本周全胜", desc: "近 7 天打卡全部守住（至少 2 次）", earned: week.rate === 100 && week.total >= 2 },
+    { id: "year30", label: "今年守住 30 次", desc: `${year} 年累计守住 30 次`, earned: yearSuccess >= 30 },
+    { id: "year100", label: "今年守住 100 次", desc: `${year} 年累计守住 100 次`, earned: yearSuccess >= 100 },
+    { id: "rank5", label: "晋升上士", desc: "连续清醒达到上士档（22 天及以上）", earned: rankTier >= 5 },
+    { id: "rank10", label: "晋升少尉", desc: "连续清醒达到少尉档（60 天及以上）", earned: rankTier >= 10 },
+    { id: "rank13", label: "晋升少校", desc: "连续清醒达到少校档（101 天及以上）", earned: rankTier >= 13 },
+    { id: "rank16", label: "晋升大校", desc: "连续清醒达到大校档（164 天及以上）", earned: rankTier >= 16 },
+    { id: "rank19", label: "晋升上将", desc: "连续清醒达到最高军衔上将", earned: rankTier >= 19 },
+    { id: "record", label: "个人新纪录", desc: "当前连续天数追平或打破历史最长", earned: current > 0 && current === longest && longest >= 7 },
+    { id: "record30", label: "纪录 30 天", desc: "历史最长连续清醒达到 30 天", earned: longest >= 30 },
+    { id: "record100", label: "纪录 100 天", desc: "历史最长连续清醒达到 100 天", earned: longest >= 100 },
   ];
+}
+
+function getEarnedAchievements() {
+  return getAchievementsList().filter((a) => a.earned);
+}
+
+function loadShownAchievements() {
+  const raw = loadJSON(STORAGE_KEYS.shownAchievements, []);
+  return Array.isArray(raw) ? raw : [];
+}
+
+function saveShownAchievements(ids) {
+  saveJSON(STORAGE_KEYS.shownAchievements, ids);
+}
+
+function detectNewAchievements() {
+  const shown = new Set(loadShownAchievements());
+  return getAchievementsList().filter((a) => a.earned && !shown.has(a.id));
+}
+
+function markAchievementsShown(ids) {
+  const merged = [...new Set([...loadShownAchievements(), ...ids])];
+  saveShownAchievements(merged);
+}
+
+function showAchievementUnlockModal(achievement) {
+  const modal = document.getElementById("milestone-modal");
+  const badgeEl = modal?.querySelector(".milestone-badge");
+  const titleEl = document.getElementById("milestone-title");
+  const bodyEl = document.getElementById("milestone-body");
+  if (!modal || !titleEl || !bodyEl) return;
+
+  if (badgeEl) badgeEl.textContent = "成就";
+  titleEl.textContent = achievement.label;
+  bodyEl.textContent = achievement.desc;
+  modal.classList.add("milestone-modal--achievement");
+  modal.classList.remove("hidden");
+  requestAnimationFrame(() => modal.classList.add("show"));
+}
+
+function queueAchievementUnlocks(achievements, delayStart = 3000) {
+  achievements.forEach((a, i) => {
+    setTimeout(() => {
+      showAchievementUnlockModal(a);
+      markAchievementsShown([a.id]);
+    }, delayStart + i * 2800);
+  });
 }
 
 let celebrationToastTimer = null;
@@ -439,6 +689,8 @@ function showCelebrationToast(message, duration = 2400) {
   clearTimeout(celebrationToastTimer);
   el.textContent = message;
   el.classList.remove("hidden");
+  const level = getEncouragementLevel();
+  el.classList.toggle("celebration-toast--strong", level === "strong");
   requestAnimationFrame(() => el.classList.add("show"));
   celebrationToastTimer = setTimeout(() => {
     el.classList.remove("show");
@@ -446,13 +698,26 @@ function showCelebrationToast(message, duration = 2400) {
   }, duration);
 }
 
-function showSuccessToast(streak, session) {
-  const extra = pickFromArray(SUCCESS_TOAST_EXTRAS);
+function showSuccessToast(streak, session, options = {}) {
+  const pack = getEncPack();
+  const prefix = pickFromArray(pack.SUCCESS_TOAST_PREFIX, streak + (session?.length || 0));
+  const extra = pickFromArray(pack.SUCCESS_TOAST_EXTRAS, streak);
   const rank = getRankForStreak(streak);
   const sessionLabel = session ? SESSION_META[session]?.short + "间" : "";
-  showCelebrationToast(
-    `✓ ${sessionLabel}守住了 · ${rank.name} · 连续第 ${streak} 天 · ${extra}`
-  );
+  let msg = `${prefix} ✓ ${sessionLabel}守住了 · ${rank.name} · 连续第 ${streak} 天 · ${extra}`;
+  if (options.doubleWin) {
+    msg = `${pack.DOUBLE_WIN_TOAST} ${msg}`;
+  }
+  showCelebrationToast(msg, options.doubleWin ? 3200 : 2600);
+}
+
+function flashCalendarCell(dateKey) {
+  const cell = document.querySelector(`.day-cell[data-date-key="${dateKey}"]`);
+  if (!cell) return;
+  cell.classList.remove("day-cell--pop");
+  void cell.offsetWidth;
+  cell.classList.add("day-cell--pop");
+  setTimeout(() => cell.classList.remove("day-cell--pop"), 700);
 }
 
 function showRankUpModal(rank) {
@@ -465,9 +730,11 @@ function showRankUpModal(rank) {
   if (badgeEl) badgeEl.textContent = "晋级";
   titleEl.textContent = rank.name;
   bodyEl.innerHTML = `
-    <div class="rank-up-badge-wrap">${renderRankBadgeSvg(rank, 72)}</div>
-    <p class="rank-up-desc">连续清醒进入 ${getRankRangeLabel(rank)} 档，继续保持。</p>
+    <div class="rank-up-badge-wrap rank-up-badge-wrap--animate">${renderRankBadgeSvg(rank, 72)}</div>
+    <p class="rank-up-desc">${getEncPack().RANK_UP_DESC(getRankRangeLabel(rank))}</p>
   `;
+  modal.classList.add("milestone-modal--rank-up");
+  modal.classList.remove("milestone-modal--achievement");
   modal.classList.remove("hidden");
   requestAnimationFrame(() => modal.classList.add("show"));
 }
@@ -480,15 +747,13 @@ function showMilestoneModal(milestone) {
   if (!modal || !titleEl || !bodyEl) return;
 
   if (badgeEl) badgeEl.textContent = "里程碑";
-  const msg =
-    milestone.kind === "record"
-      ? MILESTONE_MESSAGES.record
-      : MILESTONE_MESSAGES[milestone.days];
+  const msg = getEncMilestoneMessage(milestone);
   if (!msg) return;
 
   titleEl.textContent =
     milestone.kind === "record" ? `${msg.title} · ${milestone.days} 天` : msg.title;
   bodyEl.textContent = msg.body;
+  modal.classList.remove("milestone-modal--achievement", "milestone-modal--rank-up");
   modal.classList.remove("hidden");
   requestAnimationFrame(() => modal.classList.add("show"));
 }
@@ -496,7 +761,7 @@ function showMilestoneModal(milestone) {
 function closeMilestoneModal() {
   const modal = document.getElementById("milestone-modal");
   if (!modal) return;
-  modal.classList.remove("show");
+  modal.classList.remove("show", "milestone-modal--achievement", "milestone-modal--rank-up");
   setTimeout(() => modal.classList.add("hidden"), 220);
 }
 
@@ -509,14 +774,29 @@ function afterSuccessCheckin(dateKey, session, prevStreak, prevLongest) {
   const prevRank = getRankForStreak(prevStreak);
   const newRank = getRankForStreak(newStreak);
   const rankUp = isToday && newRank.tier > prevRank.tier;
+  const doubleWin = isDayDoubleSuccess(dateKey);
+  const newAchievements = detectNewAchievements();
 
-  showSuccessToast(newStreak, session);
+  flashCalendarCell(dateKey);
+  showSuccessToast(newStreak, session, { doubleWin });
+
+  let chainDelay = 2800;
   if (milestone) {
-    setTimeout(() => showMilestoneModal(milestone), 2600);
-    if (rankUp) setTimeout(() => showRankUpModal(newRank), 5400);
+    setTimeout(() => showMilestoneModal(milestone), chainDelay);
+    chainDelay += 2800;
+    if (rankUp) setTimeout(() => showRankUpModal(newRank), chainDelay);
+    chainDelay += rankUp ? 2800 : 0;
   } else if (rankUp) {
-    setTimeout(() => showRankUpModal(newRank), 2600);
+    setTimeout(() => showRankUpModal(newRank), chainDelay);
+    chainDelay += 2800;
   }
+
+  if (newAchievements.length) {
+    queueAchievementUnlocks(newAchievements, chainDelay);
+  }
+
+  renderCalendarAchievements();
+  renderCalendarReport();
 }
 
 function renderHeaderRank() {
@@ -526,12 +806,19 @@ function renderHeaderRank() {
   el.innerHTML = renderHeaderRankHtml(streak);
 }
 
+function renderHeaderRankProgress() {
+  const el = document.getElementById("header-rank-progress");
+  if (!el) return;
+  el.innerHTML = renderRankProgressHtml(getCurrentStreak());
+}
+
 function renderHeaderStreak() {
   const el = document.getElementById("header-streak");
   if (!el) return;
   const current = getCurrentStreak();
   const longest = getLongestStreak();
   const hint = getStreakHint(current, longest);
+  el.classList.toggle("header-streak--milestone", isStreakMilestoneDay(current));
   el.innerHTML = `
     <div class="header-streak-main">
       <span class="header-streak-num">${current}</span>
@@ -542,25 +829,19 @@ function renderHeaderStreak() {
   `;
 }
 
-function renderHeaderTodayWin() {
-  const el = document.getElementById("header-today-win");
-  if (!el) return;
-  const day = getDayRecord(getTodayKey());
-  const hasSuccess = SESSION_IDS.some((s) => day[s]?.status === "success");
-  if (hasSuccess) {
-    const seed = getDayOfYear(new Date()) + getTotalSuccessCount();
-    el.textContent = pickFromArray(SUCCESS_QUOTES, seed);
-    el.classList.remove("hidden");
-  } else {
-    el.textContent = "";
-    el.classList.add("hidden");
-  }
+function migrateShownAchievements() {
+  const shown = loadShownAchievements();
+  if (shown.length) return;
+  const earned = getAchievementsList()
+    .filter((a) => a.earned)
+    .map((a) => a.id);
+  if (earned.length) saveShownAchievements(earned);
 }
 
 function renderHeader() {
   renderHeaderRank();
   renderHeaderStreak();
-  renderHeaderTodayWin();
+  renderHeaderRankProgress();
   const quote = QUOTES[getTodayQuoteIndex()];
   const authorEl = document.getElementById("header-author");
   document.getElementById("header-quote").textContent = quote.text;
@@ -611,7 +892,7 @@ async function scheduleHabitReminders() {
     notifications.push({
       id: 1001,
       title: `${APP_NAME} · 午间`,
-      body: NOTIFY_BODY_NOON,
+      body: pickEnc("NOTIFY_NOON", 1) || NOTIFY_BODY_NOON_FALLBACK,
       schedule: {
         on: { hour: t1.hour, minute: t1.minute },
         allowWhileIdle: true,
@@ -624,7 +905,7 @@ async function scheduleHabitReminders() {
       notifications.push({
         id: 1002,
         title: `${APP_NAME} · 晚间`,
-        body: NOTIFY_BODY_NIGHT,
+        body: pickEnc("NOTIFY_NIGHT", 2) || NOTIFY_BODY_NIGHT_FALLBACK,
         schedule: {
           on: { hour: t2.hour, minute: t2.minute },
           allowWhileIdle: true,
@@ -994,10 +1275,31 @@ function initTheme() {
   applyTheme(loadTheme());
 }
 
-document.getElementById("theme-options").addEventListener("click", (e) => {
+document.getElementById("theme-options")?.addEventListener("click", (e) => {
   const btn = e.target.closest(".theme-option");
   if (!btn) return;
   applyTheme(btn.dataset.theme);
+});
+
+function applyEncouragementLevel(level) {
+  const lv = ENCOURAGEMENT_LEVELS.includes(level) ? level : DEFAULT_ENCOURAGEMENT_LEVEL;
+  saveJSON(STORAGE_KEYS.encouragementLevel, lv);
+  document.querySelectorAll(".encouragement-option").forEach((btn) => {
+    btn.classList.toggle("active", btn.dataset.level === lv);
+  });
+  renderHeader();
+  renderCalendarAchievements();
+  renderCalendarReport();
+}
+
+function initEncouragementLevel() {
+  applyEncouragementLevel(getEncouragementLevel());
+}
+
+document.getElementById("encouragement-options")?.addEventListener("click", (e) => {
+  const btn = e.target.closest(".encouragement-option");
+  if (!btn) return;
+  applyEncouragementLevel(btn.dataset.level);
 });
 
 function getCheckinStats(period = "all", refDate = null) {
@@ -1125,6 +1427,7 @@ document.querySelectorAll(".open-settings-btn").forEach((btn) => {
 });
 document.getElementById("data-back-btn").addEventListener("click", closeDataPanel);
 document.getElementById("rank-back-btn")?.addEventListener("click", closeRankPanel);
+document.getElementById("achievement-back-btn")?.addEventListener("click", closeAchievementPanel);
 document.getElementById("header-rank")?.addEventListener("click", (e) => {
   if (e.target.closest("#header-rank-btn")) openRankPanel();
 });
@@ -1202,10 +1505,15 @@ function renderCalendar() {
     const cell = document.createElement("button");
     cell.className = "day-cell";
     cell.type = "button";
+    cell.dataset.dateKey = dateKey;
 
     if (dateKey === todayKey) {
-      cell.classList.add("today");
+      const hasCheckin = SESSION_IDS.some((s) => getSessionRecord(dateKey, s)?.status);
+      if (!hasCheckin) cell.classList.add("today");
       cell.setAttribute("aria-label", `${day}日（今天）`);
+    }
+    if (isDayDoubleSuccess(dateKey)) {
+      cell.classList.add("day-cell--double-win");
     }
 
     const numEl = document.createElement("span");
@@ -1220,11 +1528,48 @@ function renderCalendar() {
   }
 
   renderMonthStats();
+  renderCalendarAchievements();
+  renderCalendarReport();
+}
+
+function getMonthEncourageLine(year, month) {
+  const habit = getHabitMonthStats(year, month);
+  const soberDays = getMonthSoberDayCount(year, month);
+  const rate = getMonthSuccessRate(year, month);
+  const now = new Date();
+  const isCurrentMonth = year === now.getFullYear() && month === now.getMonth();
+
+  if (!habit.logged) {
+    return isCurrentMonth
+      ? "第一张胜利票等你来填，从今天开始！"
+      : "这个月还没有记录，新的月份是新的机会。";
+  }
+
+  let prevMonth = month - 1;
+  let prevYear = year;
+  if (prevMonth < 0) {
+    prevMonth = 11;
+    prevYear -= 1;
+  }
+  const prevSoberDays = getMonthSoberDayCount(prevYear, prevMonth);
+  const diff = soberDays - prevSoberDays;
+
+  if (isCurrentMonth && diff > 0) {
+    return `本月已守住 ${soberDays} 天，比上个月多 ${diff} 天，继续冲！`;
+  }
+  if (isCurrentMonth && rate >= 80) {
+    return `本月守住率 ${rate}%，你正在稳稳改写默认选项！`;
+  }
+  if (isCurrentMonth) {
+    return `本月已守住 ${soberDays} 天，每一天都算数，继续加油！`;
+  }
+  return `该月守住 ${soberDays} 天，守住率 ${rate}%。`;
 }
 
 function renderMonthStats() {
   const habit = getHabitMonthStats(currentYear, currentMonth);
   const statsEl = document.getElementById("month-stats");
+  const encourageEl = document.getElementById("month-encourage");
 
   statsEl.innerHTML = `
     <div class="stat-item success">
@@ -1238,6 +1583,143 @@ function renderMonthStats() {
     <div class="stat-item fail">
       <div class="stat-num">${habit.relapse}</div>
       <div class="stat-label">没守住</div>
+    </div>
+  `;
+
+  if (encourageEl) {
+    encourageEl.textContent = getMonthEncourageLine(currentYear, currentMonth);
+  }
+}
+
+function renderCalendarAchievements() {
+  const el = document.getElementById("calendar-achievements");
+  if (!el) return;
+
+  const list = getAchievementsList();
+  const earned = list.filter((a) => a.earned);
+  const upcoming = list.filter((a) => !a.earned).slice(0, 3);
+  const pct = list.length ? Math.round((earned.length / list.length) * 100) : 0;
+  const cheerLine = getAchievementCheerLine(earned.length, list.length);
+
+  const earnedHtml = earned
+    .slice(-5)
+    .reverse()
+    .map(
+      (a) =>
+        `<span class="calendar-achievement-badge earned" title="${escapeHtml(a.desc)}"><span class="badge-icon" aria-hidden="true">★</span>${escapeHtml(a.label)}</span>`
+    )
+    .join("");
+
+  const upcomingHtml = upcoming
+    .map(
+      (a) =>
+        `<span class="calendar-achievement-badge locked" title="${escapeHtml(a.desc)}"><span class="badge-icon" aria-hidden="true">◇</span>${escapeHtml(a.label)}</span>`
+    )
+    .join("");
+
+  el.innerHTML = `
+    <div class="calendar-achievements-card">
+      <div class="calendar-achievements-glow" aria-hidden="true"></div>
+      <div class="calendar-achievements-head">
+        <div class="calendar-achievements-head-main">
+          <span class="calendar-achievements-medal" aria-hidden="true">🏅</span>
+          <div class="calendar-achievements-head-text">
+            <span class="calendar-achievements-title">我的战绩</span>
+            <p class="calendar-achievements-cheer">${escapeHtml(cheerLine)}</p>
+          </div>
+        </div>
+        <div class="calendar-achievements-actions">
+          <span class="calendar-achievements-count">${earned.length}/${list.length}</span>
+          <button type="button" class="calendar-achievements-link" id="open-achievement-panel">全部 ›</button>
+        </div>
+      </div>
+      <div class="calendar-achievements-progress-wrap">
+        <div class="calendar-achievements-progress-track" role="progressbar" aria-valuenow="${pct}" aria-valuemin="0" aria-valuemax="100">
+          <span class="calendar-achievements-progress-fill" style="width:${pct}%"></span>
+        </div>
+        <span class="calendar-achievements-progress-label">已解锁 ${pct}%</span>
+      </div>
+      <div class="calendar-achievements-badges">${earnedHtml || '<span class="calendar-achievements-empty">完成打卡，第一枚勋章马上属于你</span>'}${upcomingHtml}</div>
+    </div>
+  `;
+
+  document.getElementById("open-achievement-panel")?.addEventListener("click", openAchievementPanel);
+}
+
+function renderAchievementPanel() {
+  const listEl = document.getElementById("achievement-list");
+  if (!listEl) return;
+  const list = getAchievementsList();
+  const earnedCount = list.filter((a) => a.earned).length;
+
+  listEl.innerHTML = `
+    <p class="achievement-list-summary">已解锁 ${earnedCount} / ${list.length}</p>
+    ${list
+      .map(
+        (a) => `
+      <article class="achievement-list-item${a.earned ? " is-earned" : ""}">
+        <div class="achievement-list-main">
+          <span class="achievement-list-label">${escapeHtml(a.label)}</span>
+          <span class="achievement-list-desc">${escapeHtml(a.desc)}</span>
+        </div>
+        <span class="achievement-list-status">${a.earned ? "已解锁" : "未解锁"}</span>
+      </article>`
+      )
+      .join("")}
+  `;
+}
+
+function openAchievementPanel() {
+  document.getElementById("main-view").classList.add("hidden");
+  document.getElementById("bottom-nav").classList.add("hidden");
+  document.getElementById("app-header").classList.add("header-hidden");
+  document.getElementById("achievement-panel").classList.remove("hidden");
+  setSettingsButtonsVisible(false);
+  renderAchievementPanel();
+}
+
+function closeAchievementPanel() {
+  document.getElementById("achievement-panel").classList.add("hidden");
+  document.getElementById("main-view").classList.remove("hidden");
+  document.getElementById("bottom-nav").classList.remove("hidden");
+  setSettingsButtonsVisible(true);
+  const activeTab = document.querySelector(".nav-item.active")?.dataset.tab || "calendar";
+  updateHeaderVisibility(activeTab);
+}
+
+function renderCalendarReport() {
+  const el = document.getElementById("calendar-report");
+  if (!el) return;
+
+  const week = getWeekStats();
+  const current = getCurrentStreak();
+  const longest = getLongestStreak();
+  const now = new Date();
+  const monthRate = getMonthSuccessRate(now.getFullYear(), now.getMonth());
+  const monthSober = getMonthSoberDayCount(now.getFullYear(), now.getMonth());
+
+  el.innerHTML = `
+    <div class="calendar-report-card">
+      <p class="calendar-report-title">本周 / 本月战报</p>
+      <div class="calendar-report-grid">
+        <div class="calendar-report-stat">
+          <span class="calendar-report-num">${week.rate}%</span>
+          <span class="calendar-report-label">近 7 天守住率</span>
+        </div>
+        <div class="calendar-report-stat">
+          <span class="calendar-report-num">${monthRate}%</span>
+          <span class="calendar-report-label">本月守住率</span>
+        </div>
+        <div class="calendar-report-stat">
+          <span class="calendar-report-num">${monthSober}</span>
+          <span class="calendar-report-label">本月守住天数</span>
+        </div>
+        <div class="calendar-report-stat highlight">
+          <span class="calendar-report-num">${current}</span>
+          <span class="calendar-report-label">当前连续 / 最长 ${longest}</span>
+        </div>
+      </div>
+      <p class="calendar-report-foot">${week.total ? `近 7 天守住 ${week.success} 次，你仍在场上。` : "近 7 天还没有记录，今天就可以开始。"}</p>
     </div>
   `;
 }
@@ -1274,11 +1756,11 @@ function renderSummaryHabitPanel() {
     : '<p class="insight-empty">暂无诱因记录，「没守住」时可填写复盘</p>';
 
   const totalSuccess = getTotalSuccessCount();
-  const achievements = getEarnedAchievements();
+  const achievements = getAchievementsList();
   const achievementHtml = achievements
     .map(
       (a) =>
-        `<span class="achievement-badge${a.earned ? " earned" : " locked"}">${a.label}</span>`
+        `<span class="achievement-badge${a.earned ? " earned" : " locked"}" title="${escapeHtml(a.desc)}">${a.label}</span>`
     )
     .join("");
 
@@ -1324,8 +1806,8 @@ function renderSummary() {
   if (!stats.total) {
     overviewEl.innerHTML = `
       <div class="summary-empty">
-        <p class="summary-empty-title">暂无打卡数据</p>
-        <p class="summary-empty-hint">在日历页完成第一次打卡后，这里会显示汇总</p>
+        <p class="summary-empty-title">第一张胜利票等你来填</p>
+        <p class="summary-empty-hint">在日历页完成第一次打卡，这里会为你汇总全年战绩</p>
       </div>
     `;
     document.getElementById("summary-cards").innerHTML = "";
@@ -1400,11 +1882,11 @@ function updateModalStatusSelection(status) {
   if (hintEl) {
     let hint = "";
     if (status === "success") {
-      hint = pickFromArray(SUCCESS_SELECT_HINTS, selectedDateKey?.length);
+      hint = pickEnc("SUCCESS_SELECT_HINTS", selectedDateKey?.length);
     } else if (status === "partial") {
-      hint = pickFromArray(PARTIAL_SELECT_HINTS, selectedDateKey?.length);
+      hint = pickEnc("PARTIAL_SELECT_HINTS", selectedDateKey?.length);
     } else if (status === "fail") {
-      hint = pickFromArray(FAIL_SELECT_HINTS, selectedDateKey?.length);
+      hint = pickEnc("FAIL_SELECT_HINTS", selectedDateKey?.length);
     }
     if (hint) {
       hintEl.textContent = hint;
@@ -1415,8 +1897,8 @@ function updateModalStatusSelection(status) {
     }
   }
   if (summaryEl) {
-    summaryEl.placeholder = status && SUMMARY_PLACEHOLDERS[status]
-      ? SUMMARY_PLACEHOLDERS[status]
+    summaryEl.placeholder = status
+      ? getEncSummaryPlaceholder(status)
       : "今天发生了什么？用一句话记录...";
   }
 }
@@ -1664,6 +2146,12 @@ function saveCheckin() {
 
   if (status === "success") {
     afterSuccessCheckin(dateKey, session, prevStreak, prevLongest);
+  } else if (status === "partial") {
+    showCelebrationToast(pickEnc("PARTIAL_SAVE_TOAST", dateKey.length), 2600);
+    const newAchievements = detectNewAchievements();
+    if (newAchievements.length) queueAchievementUnlocks(newAchievements, 2800);
+  } else if (status === "fail") {
+    showCelebrationToast(pickEnc("FAIL_SAVE_TOAST", dateKey.length), 2600);
   }
 }
 
@@ -1798,9 +2286,9 @@ function renderRecords() {
   if (!entries.length) {
     listEl.innerHTML = `
       <div class="records-empty">
-        <p>${hasFilter ? "没有符合筛选条件的记录" : "还没有打卡记录"}</p>
+        <p>${hasFilter ? "没有符合筛选条件的记录" : "还没有打卡记录，第一笔胜利等你来写"}</p>
         <p class="records-empty-hint">${
-          hasFilter ? "试试调整筛选条件" : "去日历打卡，写下你的第一句话总结吧"
+          hasFilter ? "试试调整筛选条件" : "去日历打卡，写下你的第一句话总结，这就是开始！"
         }</p>
       </div>
     `;
@@ -1890,7 +2378,7 @@ function renderMemos() {
     listEl.innerHTML = `
       <div class="memos-empty">
         <p>还没有备忘录</p>
-        <p class="memos-empty-hint">点击右上角「+ 新建」写下第一条吧</p>
+        <p class="memos-empty-hint">点击右上角「+ 新建」，写下第一条给自己的话</p>
       </div>
     `;
     return;
@@ -2023,6 +2511,8 @@ function buildExportPayload() {
       checkins,
       memos,
       notifications: loadNotificationSettings(),
+      encouragementLevel: getEncouragementLevel(),
+      shownAchievements: loadShownAchievements(),
     },
   };
 }
@@ -2037,6 +2527,8 @@ function normalizeImportPayload(raw) {
       checkins: raw.data.checkins ?? {},
       memos: raw.data.memos ?? [],
       notifications: raw.data.notifications,
+      encouragementLevel: raw.data.encouragementLevel,
+      shownAchievements: raw.data.shownAchievements,
     };
   }
 
@@ -2045,6 +2537,8 @@ function normalizeImportPayload(raw) {
       checkins: raw.checkins ?? {},
       memos: raw.memos ?? [],
       notifications: raw.notifications,
+      encouragementLevel: raw.encouragementLevel,
+      shownAchievements: raw.shownAchievements,
     };
   }
 
@@ -2167,6 +2661,15 @@ function importAllData(payload) {
       ...normalized.notifications,
     });
   }
+  if (
+    normalized.encouragementLevel &&
+    ENCOURAGEMENT_LEVELS.includes(normalized.encouragementLevel)
+  ) {
+    saveJSON(STORAGE_KEYS.encouragementLevel, normalized.encouragementLevel);
+  }
+  if (Array.isArray(normalized.shownAchievements)) {
+    saveJSON(STORAGE_KEYS.shownAchievements, normalized.shownAchievements);
+  }
 
   replaceCheckins(normalized.checkins);
   memos = loadMemos();
@@ -2217,6 +2720,7 @@ document.getElementById("import-file-input").addEventListener("change", (e) => {
 
 // ===== 初始化 =====
 initTheme();
+initEncouragementLevel();
 initSummaryStatsToggle();
 initRecordsFilters();
 initRecordsFilterToggle();
@@ -2225,4 +2729,5 @@ document.getElementById("milestone-dismiss")?.addEventListener("click", closeMil
 document.getElementById("milestone-modal")?.querySelector(".milestone-backdrop")?.addEventListener("click", closeMilestoneModal);
 renderHeader();
 renderCalendar();
+migrateShownAchievements();
 initNativeBridge();
