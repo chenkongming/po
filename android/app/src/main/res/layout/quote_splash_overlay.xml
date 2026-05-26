@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/quote_splash_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/splash_bg"
+    android:padding="28dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:background="@drawable/quote_splash_card"
+        android:orientation="vertical"
+        android:padding="24dp">
+
+        <TextView
+            android:id="@+id/splash_day_badge"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center_horizontal"
+            android:letterSpacing="0.15"
+            android:text="第 1 天 / 365"
+            android:textColor="@color/splash_accent"
+            android:textSize="12sp" />
+
+        <TextView
+            android:id="@+id/splash_quote"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:gravity="center"
+            android:lineSpacingExtra="6dp"
+            android:text="千里之行，始于足下。"
+            android:textColor="@color/splash_text"
+            android:textSize="17sp" />
+
+        <TextView
+            android:id="@+id/splash_author"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="14dp"
+            android:gravity="end"
+            android:text="—— 老子"
+            android:textColor="@color/splash_text_muted"
+            android:textSize="12sp" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center_horizontal"
+            android:layout_marginTop="20dp"
+            android:text="365.dev"
+            android:textColor="@color/splash_text_muted"
+            android:textSize="11sp"
+            android:letterSpacing="0.2" />
+    </LinearLayout>
+</FrameLayout>

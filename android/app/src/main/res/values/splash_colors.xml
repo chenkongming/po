@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="splash_bg">#F2F5F8</color>
+    <color name="splash_card_bg">#FFFFFF</color>
+    <color name="splash_card_border">#DDE4EC</color>
+    <color name="splash_accent">#5A7FA8</color>
+    <color name="splash_text">#1E293B</color>
+    <color name="splash_text_muted">#64748B</color>
+</resources>
