@@ -12,6 +12,26 @@
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
+  <div id="lock-screen" class="lock-screen hidden" aria-hidden="true">
+    <div class="lock-screen-card">
+      <h1 class="lock-screen-title">365.dev</h1>
+      <p class="lock-screen-desc">请输入数字密码进入</p>
+      <input
+        type="password"
+        id="lock-pin-input"
+        class="lock-pin-input"
+        inputmode="numeric"
+        pattern="[0-9]*"
+        maxlength="8"
+        autocomplete="off"
+        aria-label="数字密码"
+        placeholder="••••"
+      />
+      <p class="lock-error hidden" id="lock-error" role="alert">密码错误，请重试</p>
+      <button type="button" id="lock-submit-btn" class="btn-primary lock-submit-btn">进入</button>
+    </div>
+  </div>
+
   <div class="app-shell">
     <header class="header" id="app-header">
       <button type="button" class="app-settings-btn open-settings-btn" aria-label="设置">
@@ -42,7 +62,7 @@
             <span class="legend-item"><span class="status-icon success">✓</span> 守住了</span>
             <span class="legend-item"><span class="status-icon partial">○</span> 差点犯</span>
             <span class="legend-item"><span class="status-icon fail">✗</span> 没守住</span>
-            <span class="legend-item legend-sessions">午 / 晚</span>
+            <span class="legend-item legend-sessions">晚 / 午</span>
           </div>
 
           <div class="calendar-body">
@@ -54,9 +74,34 @@
             <div id="calendar-grid" class="calendar-grid"></div>
           </div>
           <div class="month-stats" id="month-stats"></div>
+        </div>
+      </section>
+
+      <section id="achievements-panel" class="panel">
+        <div class="panel-head panel-head-row">
+          <div class="panel-head-main">
+            <h2>成就</h2>
+            <p class="panel-subtitle" id="achievements-subtitle"></p>
+          </div>
+          <button type="button" class="panel-icon-btn" id="achievements-open-records" aria-label="打卡记录">
+            <svg class="panel-icon-btn-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/>
+            </svg>
+          </button>
+        </div>
+        <div class="achievements-page">
           <p class="month-encourage" id="month-encourage" aria-live="polite"></p>
           <div class="calendar-achievements" id="calendar-achievements"></div>
           <div class="calendar-report" id="calendar-report"></div>
+          <div class="achievements-full-block habit-insight-block">
+            <p class="habit-insight-title">全部勋章</p>
+            <p class="habit-achievement-sub" id="achievements-full-sub"></p>
+            <div class="achievement-badges" id="achievement-badges-full"></div>
+          </div>
+          <div class="achievements-list-block">
+            <p class="habit-insight-title">成就详情</p>
+            <div class="achievement-list" id="achievement-list"></div>
+          </div>
         </div>
       </section>
 
@@ -69,10 +114,8 @@
         </div>
         <div class="year-calendar-section">
           <div class="year-calendar-head" id="year-calendar-head"></div>
-          <p class="year-calendar-hint">全年打卡概览，仅展示不可编辑</p>
           <div class="year-calendar" id="year-calendar"></div>
         </div>
-        <div class="summary-habit-panel" id="summary-habit-panel"></div>
         <div class="summary-stats-wrap">
           <button type="button" id="summary-stats-toggle" class="summary-stats-toggle" aria-expanded="false">
             <span class="summary-stats-toggle-text">展开详细统计</span>
@@ -89,6 +132,7 @@
 
       <section id="records-panel" class="panel">
         <div class="panel-head panel-head-row">
+          <button type="button" class="panel-action-btn panel-action-btn--back" id="records-back-btn" aria-label="返回成就">←</button>
           <div class="panel-head-main">
             <h2>打卡记录</h2>
             <p class="panel-subtitle records-count" id="records-count"></p>
@@ -112,8 +156,8 @@
             <span class="records-filter-label">场次</span>
             <div class="records-filter-chips" data-filter="session">
               <button type="button" class="filter-chip active" data-value="">全部</button>
-              <button type="button" class="filter-chip" data-value="noon">午间</button>
               <button type="button" class="filter-chip" data-value="night">晚间</button>
+              <button type="button" class="filter-chip" data-value="noon">午间</button>
             </div>
           </div>
           <div class="records-filter-row">
@@ -149,17 +193,18 @@
         </svg>
         <span class="nav-label">打卡</span>
       </button>
+      <button type="button" class="nav-item" data-tab="achievements" aria-label="成就">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+          <path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0V4z"/>
+          <path d="M5 4H3v1a4 4 0 0 0 4 4M19 4h2v1a4 4 0 0 1-4 4"/>
+        </svg>
+        <span class="nav-label">成就</span>
+      </button>
       <button type="button" class="nav-item" data-tab="memos" aria-label="提示">
         <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
           <path d="M9 18h6"/><path d="M10 22h4"/><path d="M12 2a7 7 0 0 0-4 12.7V17h8v-2.3A7 7 0 0 0 12 2z"/>
         </svg>
         <span class="nav-label">提示</span>
-      </button>
-      <button type="button" class="nav-item" data-tab="records" aria-label="记录">
-        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>
-        </svg>
-        <span class="nav-label">记录</span>
       </button>
       <button type="button" class="nav-item" data-tab="summary" aria-label="全年">
         <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
@@ -219,6 +264,12 @@
           <button type="button" id="save-notify-btn" class="btn-secondary">保存提醒设置</button>
         </section>
 
+        <section class="settings-block" id="pin-settings-block">
+          <h3 class="settings-block-title">应用密码</h3>
+          <p class="settings-block-desc" id="pin-settings-desc">设置 4–8 位数字密码，启动时需验证后才能进入</p>
+          <div class="pin-settings-form" id="pin-settings-form"></div>
+        </section>
+
         <section class="settings-block">
           <h3 class="settings-block-title">备份与恢复</h3>
           <p class="settings-block-desc">导出 JSON 可在换设备或重装后恢复数据</p>
@@ -229,17 +280,6 @@
             <input type="file" id="import-file-input" accept=".json,application/json" hidden />
           </div>
           <p class="data-hint">导入会覆盖当前全部数据，请先导出备份</p>
-        </section>
-      </div>
-    </section>
-
-    <section id="achievement-panel" class="overlay-panel hidden">
-      <div class="settings-page">
-        <button type="button" id="achievement-back-btn" class="btn-secondary data-back-btn">← 返回</button>
-        <section class="settings-block">
-          <h3 class="settings-block-title">全部成就</h3>
-          <p class="settings-block-desc">守住、复盘、提示记录都会在这里留下勋章</p>
-          <div class="achievement-list" id="achievement-list"></div>
         </section>
       </div>
     </section>
@@ -259,21 +299,25 @@
   <div id="memo-modal" class="modal hidden">
     <div class="modal-backdrop"></div>
     <div class="modal-content memo-modal-content">
-      <h3 id="memo-modal-title">新建备忘录</h3>
-      <p class="modal-hint memo-md-hint">Markdown：# 标题 · **粗体** · *斜体* · `代码` · &gt; 引用 · - 列表 · 1. 有序列表 · --- 分隔线</p>
-      <label class="memo-field-label" for="memo-input">内容</label>
-      <textarea id="memo-input" class="memo-input" placeholder="第一行作为标题&#10;&#10;# 小标题&#10;写正文，支持 **粗体** 和列表..." rows="6"></textarea>
-      <div class="memo-preview-wrap">
-        <p class="memo-preview-label">预览</p>
-        <div id="memo-preview" class="memo-body memo-preview"></div>
+      <div class="memo-modal-header">
+        <h3 id="memo-modal-title">新建备忘录</h3>
       </div>
-      <label class="memo-pin-label">
-        <input type="checkbox" id="memo-pin" />
-        <span>在列表中置顶</span>
-      </label>
+      <div class="memo-modal-body">
+        <textarea id="memo-input" class="memo-input" placeholder="第一行作为标题，下方写正文…" rows="8"></textarea>
+        <details class="memo-preview-details">
+          <summary class="memo-preview-toggle">预览</summary>
+          <div class="memo-preview-wrap">
+            <div id="memo-preview" class="memo-body memo-preview"></div>
+          </div>
+        </details>
+        <label class="memo-pin-label">
+          <input type="checkbox" id="memo-pin" />
+          <span>置顶显示</span>
+        </label>
+      </div>
       <div class="memo-modal-actions">
-        <button id="save-memo-btn" class="btn-primary">保存</button>
-        <button id="cancel-memo-btn" class="btn-close">取消</button>
+        <button type="button" id="cancel-memo-btn" class="btn-secondary memo-modal-cancel">取消</button>
+        <button type="button" id="save-memo-btn" class="btn-primary memo-modal-save">保存</button>
       </div>
     </div>
   </div>
@@ -283,8 +327,8 @@
     <div class="modal-content checkin-modal-content">
       <h3 id="modal-date"></h3>
       <div class="session-tabs" role="tablist" aria-label="打卡场次">
-        <button type="button" class="session-tab active" data-session="noon" role="tab" aria-selected="true">午间</button>
         <button type="button" class="session-tab" data-session="night" role="tab" aria-selected="false">晚间</button>
+        <button type="button" class="session-tab active" data-session="noon" role="tab" aria-selected="true">午间</button>
       </div>
       <div class="status-options">
         <button type="button" class="status-btn success" data-status="success"><span class="status-icon success">✓</span><span>守住了</span></button>

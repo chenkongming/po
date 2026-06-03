@@ -8,6 +8,7 @@ const STORAGE_KEYS = {
   summaryStatsExpanded: "summary_stats_expanded",
   recordsFiltersExpanded: "records_filters_expanded",
   notifications: "habit_notifications",
+  appPinHash: "app_pin_hash",
 };
 
 const APP_NAME = "365.dev";
@@ -49,7 +50,7 @@ const DEFAULT_NOTIFICATIONS = {
 const NOTIFY_BODY_NOON_FALLBACK = "午间打卡——守住了就点「守住了」。";
 const NOTIFY_BODY_NIGHT_FALLBACK = "晚间打卡——记一下今天，守住了就点「守住了」。";
 
-const SESSION_IDS = ["noon", "night"];
+const SESSION_IDS = ["night", "noon"];
 const SESSION_META = {
   noon: { label: "午间打卡", short: "午", hint: "中午是高危时段，及时记一笔" },
   night: { label: "晚间打卡", short: "晚", hint: "回顾全天，守住再睡" },
@@ -795,8 +796,7 @@ function afterSuccessCheckin(dateKey, session, prevStreak, prevLongest) {
     queueAchievementUnlocks(newAchievements, chainDelay);
   }
 
-  renderCalendarAchievements();
-  renderCalendarReport();
+  renderAchievements();
 }
 
 function renderHeaderRank() {
@@ -1108,6 +1108,12 @@ function isMemoLong(content) {
   return lineCount > MEMO_COLLAPSE_LINE_LIMIT || text.length > MEMO_COLLAPSE_CHAR_LIMIT;
 }
 
+function renderMemoPinIcon() {
+  return `<svg class="memo-pin-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <path d="M12 17v5"/><path d="M8 10V6a4 4 0 1 1 8 0v4"/><path d="M6 10h12v2l-2 8H8l-2-8v-2z"/>
+  </svg>`;
+}
+
 function renderMemoCard(memo) {
   const preview = getMemoTitle(memo.content);
   const pinLabel = memo.pinned ? "取消置顶" : "置顶";
@@ -1120,21 +1126,23 @@ function renderMemoCard(memo) {
 
   return `
     <article class="memo-card${memo.pinned ? " is-pinned" : ""}" data-id="${memo.id}">
-      <div class="memo-card-head">
-        <h3 class="memo-title">
-          ${memo.pinned ? '<span class="memo-pin-badge">置顶</span>' : ""}
-          ${escapeHtml(preview)}
-        </h3>
-        <time class="memo-time">${formatMemoTime(memo.updatedAt)}</time>
+      <div class="memo-card-header">
+        <div class="memo-card-meta">
+          <div class="memo-card-head">
+            ${memo.pinned ? `<span class="memo-pin-badge" title="已置顶" aria-label="已置顶">${renderMemoPinIcon()}</span>` : ""}
+            <h3 class="memo-title">${escapeHtml(preview)}</h3>
+          </div>
+          <time class="memo-time">${formatMemoTime(memo.updatedAt)}</time>
+        </div>
       </div>
       <div class="memo-body-wrap${longMemo ? " is-collapsible" : ""}">
         <div class="memo-body">${bodyHtml}</div>
         ${expandBtn}
       </div>
-      <div class="memo-actions">
-        <button class="memo-btn pin" data-action="${pinAction}" data-id="${memo.id}">${pinLabel}</button>
-        <button class="memo-btn edit" data-action="edit" data-id="${memo.id}">编辑</button>
-        <button class="memo-btn delete" data-action="delete" data-id="${memo.id}">删除</button>
+      <div class="memo-actions" aria-hidden="true">
+        <button type="button" class="memo-btn pin" data-action="${pinAction}" data-id="${memo.id}">${pinLabel}</button>
+        <button type="button" class="memo-btn edit" data-action="edit" data-id="${memo.id}">编辑</button>
+        <button type="button" class="memo-btn delete" data-action="delete" data-id="${memo.id}">删除</button>
       </div>
     </article>
   `;
@@ -1288,8 +1296,7 @@ function applyEncouragementLevel(level) {
     btn.classList.toggle("active", btn.dataset.level === lv);
   });
   renderHeader();
-  renderCalendarAchievements();
-  renderCalendarReport();
+  renderAchievements();
 }
 
 function initEncouragementLevel() {
@@ -1340,9 +1347,10 @@ function updateHeaderVisibility(tabName) {
   document.getElementById("app-header").classList.toggle("header-hidden", tabName !== "calendar");
 }
 
-function switchTab(tabName) {
+function switchTab(tabName, options = {}) {
+  const { fromNav = true } = options;
   document.querySelectorAll(".nav-item").forEach((item) => {
-    item.classList.toggle("active", item.dataset.tab === tabName);
+    item.classList.toggle("active", fromNav && item.dataset.tab === tabName);
   });
   document.querySelectorAll("#main-view .panel").forEach((panel) => {
     panel.classList.toggle("active", panel.id === `${tabName}-panel`);
@@ -1352,7 +1360,7 @@ function switchTab(tabName) {
   if (mainView) {
     mainView.classList.toggle(
       "main-content--nav-gap",
-      tabName === "summary" || tabName === "memos"
+      tabName === "summary" || tabName === "memos" || tabName === "achievements" || tabName === "records"
     );
     mainView.classList.toggle("main-content--calendar-fit", tabName === "calendar");
   }
@@ -1361,11 +1369,20 @@ function switchTab(tabName) {
 
   if (tabName === "records") renderRecords();
   if (tabName === "memos") renderMemos();
+  if (tabName === "achievements") renderAchievements();
   if (tabName === "summary") renderSummary();
 }
 
 document.querySelectorAll(".nav-item").forEach((item) => {
-  item.addEventListener("click", () => switchTab(item.dataset.tab));
+  item.addEventListener("click", () => switchTab(item.dataset.tab, { fromNav: true }));
+});
+
+document.getElementById("achievements-open-records")?.addEventListener("click", () => {
+  switchTab("records", { fromNav: false });
+});
+
+document.getElementById("records-back-btn")?.addEventListener("click", () => {
+  switchTab("achievements", { fromNav: true });
 });
 
 function setSettingsButtonsVisible(visible) {
@@ -1427,7 +1444,6 @@ document.querySelectorAll(".open-settings-btn").forEach((btn) => {
 });
 document.getElementById("data-back-btn").addEventListener("click", closeDataPanel);
 document.getElementById("rank-back-btn")?.addEventListener("click", closeRankPanel);
-document.getElementById("achievement-back-btn")?.addEventListener("click", closeAchievementPanel);
 document.getElementById("header-rank")?.addEventListener("click", (e) => {
   if (e.target.closest("#header-rank-btn")) openRankPanel();
 });
@@ -1528,8 +1544,6 @@ function renderCalendar() {
   }
 
   renderMonthStats();
-  renderCalendarAchievements();
-  renderCalendarReport();
 }
 
 function getMonthEncourageLine(year, month) {
@@ -1569,7 +1583,6 @@ function getMonthEncourageLine(year, month) {
 function renderMonthStats() {
   const habit = getHabitMonthStats(currentYear, currentMonth);
   const statsEl = document.getElementById("month-stats");
-  const encourageEl = document.getElementById("month-encourage");
 
   statsEl.innerHTML = `
     <div class="stat-item success">
@@ -1585,10 +1598,34 @@ function renderMonthStats() {
       <div class="stat-label">没守住</div>
     </div>
   `;
+}
 
-  if (encourageEl) {
-    encourageEl.textContent = getMonthEncourageLine(currentYear, currentMonth);
+function renderMonthEncourage() {
+  const encourageEl = document.getElementById("month-encourage");
+  if (!encourageEl) return;
+  const now = new Date();
+  encourageEl.textContent = getMonthEncourageLine(now.getFullYear(), now.getMonth());
+}
+
+function renderAchievements() {
+  const subtitleEl = document.getElementById("achievements-subtitle");
+  if (subtitleEl) {
+    const list = getAchievementsList();
+    const earned = list.filter((a) => a.earned).length;
+    subtitleEl.textContent = `已解锁 ${earned} / ${list.length} 项成就`;
   }
+  renderMonthEncourage();
+  renderCalendarAchievements();
+  renderCalendarReport();
+  renderAchievementBadgesFull();
+  renderAchievementPanel();
+}
+
+function renderAchievementMedalSvg() {
+  return `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+    <path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0V4z" stroke="#c9a227" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M5 4H3v1a4 4 0 0 0 4 4M19 4h2v1a4 4 0 0 1-4 4" stroke="#d4af37" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+  </svg>`;
 }
 
 function renderCalendarAchievements() {
@@ -1622,7 +1659,7 @@ function renderCalendarAchievements() {
       <div class="calendar-achievements-glow" aria-hidden="true"></div>
       <div class="calendar-achievements-head">
         <div class="calendar-achievements-head-main">
-          <span class="calendar-achievements-medal" aria-hidden="true">🏅</span>
+          <span class="calendar-achievements-medal" aria-hidden="true">${renderAchievementMedalSvg()}</span>
           <div class="calendar-achievements-head-text">
             <span class="calendar-achievements-title">我的战绩</span>
             <p class="calendar-achievements-cheer">${escapeHtml(cheerLine)}</p>
@@ -1630,7 +1667,6 @@ function renderCalendarAchievements() {
         </div>
         <div class="calendar-achievements-actions">
           <span class="calendar-achievements-count">${earned.length}/${list.length}</span>
-          <button type="button" class="calendar-achievements-link" id="open-achievement-panel">全部 ›</button>
         </div>
       </div>
       <div class="calendar-achievements-progress-wrap">
@@ -1642,8 +1678,26 @@ function renderCalendarAchievements() {
       <div class="calendar-achievements-badges">${earnedHtml || '<span class="calendar-achievements-empty">完成打卡，第一枚勋章马上属于你</span>'}${upcomingHtml}</div>
     </div>
   `;
+}
 
-  document.getElementById("open-achievement-panel")?.addEventListener("click", openAchievementPanel);
+function renderAchievementBadgesFull() {
+  const subEl = document.getElementById("achievements-full-sub");
+  const badgesEl = document.getElementById("achievement-badges-full");
+  if (!badgesEl) return;
+
+  const totalSuccess = getTotalSuccessCount();
+  const achievements = getAchievementsList();
+  const achievementHtml = achievements
+    .map(
+      (a) =>
+        `<span class="achievement-badge${a.earned ? " earned" : " locked"}" title="${escapeHtml(a.desc)}">${escapeHtml(a.label)}</span>`
+    )
+    .join("");
+
+  if (subEl) {
+    subEl.innerHTML = `累计守住 <strong>${totalSuccess}</strong> 次`;
+  }
+  badgesEl.innerHTML = achievementHtml;
 }
 
 function renderAchievementPanel() {
@@ -1667,24 +1721,6 @@ function renderAchievementPanel() {
       )
       .join("")}
   `;
-}
-
-function openAchievementPanel() {
-  document.getElementById("main-view").classList.add("hidden");
-  document.getElementById("bottom-nav").classList.add("hidden");
-  document.getElementById("app-header").classList.add("header-hidden");
-  document.getElementById("achievement-panel").classList.remove("hidden");
-  setSettingsButtonsVisible(false);
-  renderAchievementPanel();
-}
-
-function closeAchievementPanel() {
-  document.getElementById("achievement-panel").classList.add("hidden");
-  document.getElementById("main-view").classList.remove("hidden");
-  document.getElementById("bottom-nav").classList.remove("hidden");
-  setSettingsButtonsVisible(true);
-  const activeTab = document.querySelector(".nav-item.active")?.dataset.tab || "calendar";
-  updateHeaderVisibility(activeTab);
 }
 
 function renderCalendarReport() {
@@ -1724,80 +1760,8 @@ function renderCalendarReport() {
   `;
 }
 
-function renderSummaryHabitPanel() {
-  const panel = document.getElementById("summary-habit-panel");
-  if (!panel) return;
-
-  const now = new Date();
-  const monthHabit = getHabitMonthStats(now.getFullYear(), now.getMonth());
-  const current = getCurrentStreak();
-  const longest = getLongestStreak();
-  const insights = getTriggerInsights(summaryYear);
-
-  const maxWeekday = Math.max(1, ...insights.weekdayCounts);
-  const weekdayBars = WEEKDAYS.map((name, i) => {
-    const count = insights.weekdayCounts[i];
-    const pct = Math.round((count / maxWeekday) * 100);
-    return `<div class="insight-bar-row">
-      <span class="insight-bar-label">周${name}</span>
-      <span class="insight-bar-track"><span class="insight-bar-fill fail" style="width:${pct}%"></span></span>
-      <span class="insight-bar-num">${count}</span>
-    </div>`;
-  }).join("");
-
-  const triggerEntries = Object.entries(insights.triggerCounts).sort((a, b) => b[1] - a[1]);
-  const triggerHtml = triggerEntries.length
-    ? triggerEntries
-        .map(
-          ([key, n]) =>
-            `<span class="insight-tag">${TRIGGER_MAP[key]} ${n} 次</span>`
-        )
-        .join("")
-    : '<p class="insight-empty">暂无诱因记录，「没守住」时可填写复盘</p>';
-
-  const totalSuccess = getTotalSuccessCount();
-  const achievements = getAchievementsList();
-  const achievementHtml = achievements
-    .map(
-      (a) =>
-        `<span class="achievement-badge${a.earned ? " earned" : " locked"}" title="${escapeHtml(a.desc)}">${a.label}</span>`
-    )
-    .join("");
-
-  panel.innerHTML = `
-    <div class="habit-hero">
-      <div class="habit-hero-stat highlight">
-        <span class="habit-hero-num">${current}</span>
-        <span class="habit-hero-label">当前连续清醒</span>
-      </div>
-      <div class="habit-hero-stat">
-        <span class="habit-hero-num">${longest}</span>
-        <span class="habit-hero-label">历史最长</span>
-      </div>
-    </div>
-    <div class="habit-month-row">
-      <span>本月守住了 <strong>${monthHabit.sober}</strong> 天</span>
-      <span>复发 <strong>${monthHabit.relapse}</strong> 天</span>
-    </div>
-    <div class="habit-insight-block">
-      <p class="habit-insight-title">守住成就</p>
-      <p class="habit-achievement-sub">累计守住 <strong>${totalSuccess}</strong> 次</p>
-      <div class="achievement-badges">${achievementHtml}</div>
-    </div>
-    <div class="habit-insight-block">
-      <p class="habit-insight-title">${summaryYear} 年 · 复发多出现在（星期）</p>
-      <div class="insight-bars">${weekdayBars}</div>
-    </div>
-    <div class="habit-insight-block">
-      <p class="habit-insight-title">诱因分布</p>
-      <div class="insight-tags">${triggerHtml}</div>
-    </div>
-  `;
-}
-
 function renderSummary() {
   renderYearCalendar(summaryYear);
-  renderSummaryHabitPanel();
 
   const stats = getYearStats(summaryYear);
   document.getElementById("summary-subtitle").textContent = `${summaryYear} 年记录`;
@@ -1960,6 +1924,7 @@ function openMemoFromCheckin() {
     renderCalendar();
     renderSummary();
     renderHeader();
+    renderAchievements();
     syncWidgetData();
   }
 
@@ -1985,6 +1950,7 @@ function clearCheckinAt(dateKey) {
   renderCalendar();
   renderSummary();
   renderHeader();
+  renderAchievements();
   syncWidgetData();
 }
 
@@ -1992,7 +1958,10 @@ function buildMiniDayHtml(year, month, dayNum, todayKey) {
   const dateKey = formatDateKey(year, month, dayNum);
   const agg = getDayAggregateStatus(dateKey);
   let cls = "mini-day mini-day--readonly";
-  if (dateKey === todayKey) cls += " today";
+  if (dateKey === todayKey) {
+    const hasCheckin = SESSION_IDS.some((s) => getSessionRecord(dateKey, s)?.status);
+    if (!hasCheckin) cls += " today";
+  }
   if (agg) cls += ` status-${agg}`;
 
   const dayRecord = getDayRecord(dateKey);
@@ -2125,6 +2094,7 @@ function saveCheckin() {
       renderCalendar();
       renderSummary();
       renderHeader();
+      renderAchievements();
       syncWidgetData();
     }
     closeModal();
@@ -2150,8 +2120,10 @@ function saveCheckin() {
     showCelebrationToast(pickEnc("PARTIAL_SAVE_TOAST", dateKey.length), 2600);
     const newAchievements = detectNewAchievements();
     if (newAchievements.length) queueAchievementUnlocks(newAchievements, 2800);
+    renderAchievements();
   } else if (status === "fail") {
     showCelebrationToast(pickEnc("FAIL_SAVE_TOAST", dateKey.length), 2600);
+    renderAchievements();
   }
 }
 
@@ -2217,6 +2189,11 @@ function collectRecordEntries() {
         }
       });
     });
+  entries.sort((a, b) => {
+    const dateCmp = b.dateKey.localeCompare(a.dateKey);
+    if (dateCmp !== 0) return dateCmp;
+    return SESSION_IDS.indexOf(a.session) - SESSION_IDS.indexOf(b.session);
+  });
   return entries;
 }
 
@@ -2341,6 +2318,76 @@ function toggleMemoPin(memoId) {
   renderMemos();
 }
 
+function hideMemoCardActions(exceptCard = null) {
+  document.querySelectorAll(".memo-card.actions-visible").forEach((card) => {
+    if (card !== exceptCard) {
+      card.classList.remove("actions-visible");
+      card.querySelector(".memo-actions")?.setAttribute("aria-hidden", "true");
+    }
+  });
+}
+
+function showMemoCardActions(card) {
+  if (!card) return;
+  hideMemoCardActions(card);
+  card.classList.add("actions-visible");
+  card.querySelector(".memo-actions")?.setAttribute("aria-hidden", "false");
+  hapticImpact("Light");
+}
+
+let memoLongPressTimer = null;
+let memoLongPressCard = null;
+
+function clearMemoLongPressTimer() {
+  if (memoLongPressTimer) {
+    clearTimeout(memoLongPressTimer);
+    memoLongPressTimer = null;
+  }
+  memoLongPressCard = null;
+}
+
+function initMemoLongPress() {
+  const listEl = document.getElementById("memos-list");
+  if (!listEl) return;
+
+  listEl.addEventListener(
+    "touchstart",
+    (e) => {
+      const card = e.target.closest(".memo-card");
+      if (!card || e.target.closest(".memo-actions, .memo-expand-btn")) return;
+      clearMemoLongPressTimer();
+      memoLongPressCard = card;
+      memoLongPressTimer = setTimeout(() => {
+        showMemoCardActions(card);
+        clearMemoLongPressTimer();
+      }, 480);
+    },
+    { passive: true }
+  );
+
+  ["touchend", "touchmove", "touchcancel"].forEach((type) => {
+    listEl.addEventListener(type, clearMemoLongPressTimer, { passive: true });
+  });
+
+  listEl.addEventListener("mousedown", (e) => {
+    const card = e.target.closest(".memo-card");
+    if (!card || e.target.closest(".memo-actions, .memo-expand-btn")) return;
+    clearMemoLongPressTimer();
+    memoLongPressCard = card;
+    memoLongPressTimer = setTimeout(() => {
+      showMemoCardActions(card);
+      clearMemoLongPressTimer();
+    }, 480);
+  });
+
+  listEl.addEventListener("mouseup", clearMemoLongPressTimer);
+  listEl.addEventListener("mouseleave", clearMemoLongPressTimer);
+
+  document.addEventListener("click", (e) => {
+    if (!e.target.closest(".memo-card")) hideMemoCardActions();
+  });
+}
+
 function handleMemoAction(e) {
   const btn = e.target.closest("[data-action]");
   if (!btn) return;
@@ -2353,6 +2400,7 @@ function handleMemoAction(e) {
     btn.setAttribute("aria-expanded", expanded ? "true" : "false");
     return;
   }
+  hideMemoCardActions();
   if (action === "edit") openMemoModal(id);
   if (action === "delete") openDeleteMemoModal(id);
   if (action === "pin" || action === "unpin") toggleMemoPin(id);
@@ -2393,7 +2441,7 @@ function updateMemoPreview() {
   const content = memoInput.value.trim();
   previewEl.innerHTML = content
     ? formatMemoContent(content, false)
-    : '<p class="memo-empty-text">输入内容后将在此显示 Markdown 排版效果</p>';
+    : '<p class="memo-empty-text">暂无内容</p>';
 }
 
 function openMemoModal(memoId = null, initialContent = null) {
@@ -2563,6 +2611,7 @@ function reloadAppData() {
   renderHeader();
   renderCalendar();
   renderSummary();
+  renderAchievements();
   renderRecords();
   renderMemos();
   renderDataPanel();
@@ -2575,6 +2624,216 @@ function renderDataPanel() {
   document.getElementById("data-stats").textContent =
     `当前：${checkinCount} 条打卡 · ${memoCount} 条备忘录`;
   renderNotificationSettings();
+  renderPinSettingsForm();
+}
+
+// ===== 应用密码 =====
+const PIN_SESSION_KEY = "app_unlocked";
+const PIN_MIN_LEN = 4;
+const PIN_MAX_LEN = 8;
+
+function normalizePinInput(value) {
+  return String(value || "").replace(/\D/g, "").slice(0, PIN_MAX_LEN);
+}
+
+function isValidPin(pin) {
+  return /^\d{4,8}$/.test(pin);
+}
+
+async function hashPin(pin) {
+  const text = `${APP_NAME}:${pin}`;
+  if (window.crypto?.subtle) {
+    const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
+    return Array.from(new Uint8Array(buf))
+      .map((b) => b.toString(16).padStart(2, "0"))
+      .join("");
+  }
+  let hash = 5381;
+  for (let i = 0; i < text.length; i++) {
+    hash = ((hash << 5) + hash) ^ text.charCodeAt(i);
+  }
+  return `f${(hash >>> 0).toString(16)}`;
+}
+
+function getStoredPinHash() {
+  return loadJSON(STORAGE_KEYS.appPinHash, "") || "";
+}
+
+function isPinConfigured() {
+  return !!getStoredPinHash();
+}
+
+function isAppUnlocked() {
+  return !isPinConfigured() || sessionStorage.getItem(PIN_SESSION_KEY) === "1";
+}
+
+function showLockScreen() {
+  const screen = document.getElementById("lock-screen");
+  const input = document.getElementById("lock-pin-input");
+  const errorEl = document.getElementById("lock-error");
+  if (!screen) return;
+  screen.classList.remove("hidden");
+  screen.setAttribute("aria-hidden", "false");
+  document.body.classList.add("body-locked");
+  if (errorEl) errorEl.classList.add("hidden");
+  if (input) {
+    input.value = "";
+    setTimeout(() => input.focus(), 60);
+  }
+}
+
+function hideLockScreen() {
+  const screen = document.getElementById("lock-screen");
+  if (!screen) return;
+  screen.classList.add("hidden");
+  screen.setAttribute("aria-hidden", "true");
+  document.body.classList.remove("body-locked");
+}
+
+async function verifyPin(pin) {
+  const hash = await hashPin(pin);
+  return hash === getStoredPinHash();
+}
+
+async function savePinHash(pin) {
+  const hash = await hashPin(pin);
+  saveJSON(STORAGE_KEYS.appPinHash, hash);
+}
+
+async function unlockAppWithPin(pin) {
+  const normalized = normalizePinInput(pin);
+  if (!isValidPin(normalized)) return false;
+  const ok = await verifyPin(normalized);
+  if (!ok) return false;
+  sessionStorage.setItem(PIN_SESSION_KEY, "1");
+  hideLockScreen();
+  return true;
+}
+
+async function handleLockSubmit() {
+  const input = document.getElementById("lock-pin-input");
+  const errorEl = document.getElementById("lock-error");
+  if (!input) return;
+  const ok = await unlockAppWithPin(input.value);
+  if (!ok) {
+    errorEl?.classList.remove("hidden");
+    input.value = "";
+    input.focus();
+    hapticImpact("Light");
+    return;
+  }
+  errorEl?.classList.add("hidden");
+}
+
+function renderPinSettingsForm() {
+  const formEl = document.getElementById("pin-settings-form");
+  const descEl = document.getElementById("pin-settings-desc");
+  if (!formEl) return;
+
+  const configured = isPinConfigured();
+  if (descEl) {
+    descEl.textContent = configured
+      ? "已启用数字密码，可修改或清除"
+      : "设置 4–8 位数字密码，启动时需验证后才能进入";
+  }
+
+  if (!configured) {
+    formEl.innerHTML = `
+      <label class="settings-field-label" for="pin-set-new">新密码</label>
+      <input type="password" id="pin-set-new" class="settings-pin-input" inputmode="numeric" pattern="[0-9]*" maxlength="8" autocomplete="new-password" placeholder="4–8 位数字" />
+      <label class="settings-field-label" for="pin-set-confirm">确认密码</label>
+      <input type="password" id="pin-set-confirm" class="settings-pin-input" inputmode="numeric" pattern="[0-9]*" maxlength="8" autocomplete="new-password" placeholder="再次输入" />
+      <button type="button" id="pin-set-btn" class="btn-primary pin-settings-btn">设置密码</button>
+    `;
+    document.getElementById("pin-set-btn")?.addEventListener("click", handlePinSet);
+    return;
+  }
+
+  formEl.innerHTML = `
+    <label class="settings-field-label" for="pin-old">当前密码</label>
+    <input type="password" id="pin-old" class="settings-pin-input" inputmode="numeric" pattern="[0-9]*" maxlength="8" autocomplete="current-password" placeholder="当前密码" />
+    <label class="settings-field-label" for="pin-new">新密码</label>
+    <input type="password" id="pin-new" class="settings-pin-input" inputmode="numeric" pattern="[0-9]*" maxlength="8" autocomplete="new-password" placeholder="4–8 位数字" />
+    <label class="settings-field-label" for="pin-new-confirm">确认新密码</label>
+    <input type="password" id="pin-new-confirm" class="settings-pin-input" inputmode="numeric" pattern="[0-9]*" maxlength="8" autocomplete="new-password" placeholder="再次输入" />
+    <div class="pin-settings-actions">
+      <button type="button" id="pin-change-btn" class="btn-primary pin-settings-btn">修改密码</button>
+      <button type="button" id="pin-remove-btn" class="btn-secondary pin-settings-btn">清除密码</button>
+    </div>
+  `;
+  document.getElementById("pin-change-btn")?.addEventListener("click", handlePinChange);
+  document.getElementById("pin-remove-btn")?.addEventListener("click", handlePinRemove);
+}
+
+async function handlePinSet() {
+  const pin = normalizePinInput(document.getElementById("pin-set-new")?.value);
+  const confirm = normalizePinInput(document.getElementById("pin-set-confirm")?.value);
+  if (!isValidPin(pin)) {
+    alert(`密码需为 ${PIN_MIN_LEN}–${PIN_MAX_LEN} 位数字`);
+    return;
+  }
+  if (pin !== confirm) {
+    alert("两次输入的密码不一致");
+    return;
+  }
+  await savePinHash(pin);
+  sessionStorage.setItem(PIN_SESSION_KEY, "1");
+  hideLockScreen();
+  renderPinSettingsForm();
+  alert("密码设置成功");
+}
+
+async function handlePinChange() {
+  const oldPin = normalizePinInput(document.getElementById("pin-old")?.value);
+  const newPin = normalizePinInput(document.getElementById("pin-new")?.value);
+  const confirm = normalizePinInput(document.getElementById("pin-new-confirm")?.value);
+  if (!(await verifyPin(oldPin))) {
+    alert("当前密码不正确");
+    return;
+  }
+  if (!isValidPin(newPin)) {
+    alert(`新密码需为 ${PIN_MIN_LEN}–${PIN_MAX_LEN} 位数字`);
+    return;
+  }
+  if (newPin !== confirm) {
+    alert("两次输入的新密码不一致");
+    return;
+  }
+  await savePinHash(newPin);
+  sessionStorage.setItem(PIN_SESSION_KEY, "1");
+  renderPinSettingsForm();
+  alert("密码已修改");
+}
+
+async function handlePinRemove() {
+  const oldPin = normalizePinInput(document.getElementById("pin-old")?.value);
+  if (!(await verifyPin(oldPin))) {
+    alert("当前密码不正确");
+    return;
+  }
+  if (!confirm("确定清除应用密码？清除后启动将不再需要验证。")) return;
+  localStorage.removeItem(STORAGE_KEYS.appPinHash);
+  sessionStorage.removeItem(PIN_SESSION_KEY);
+  hideLockScreen();
+  renderPinSettingsForm();
+  alert("密码已清除");
+}
+
+function initAppLock() {
+  if (isAppUnlocked()) {
+    hideLockScreen();
+  } else {
+    showLockScreen();
+  }
+
+  document.getElementById("lock-submit-btn")?.addEventListener("click", handleLockSubmit);
+  document.getElementById("lock-pin-input")?.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") handleLockSubmit();
+  });
+  document.getElementById("lock-pin-input")?.addEventListener("input", (e) => {
+    e.target.value = normalizePinInput(e.target.value);
+    document.getElementById("lock-error")?.classList.add("hidden");
+  });
 }
 
 function downloadJsonInBrowser(json, fileName) {
@@ -2724,6 +2983,8 @@ initEncouragementLevel();
 initSummaryStatsToggle();
 initRecordsFilters();
 initRecordsFilterToggle();
+initMemoLongPress();
+initAppLock();
 document.getElementById("main-view")?.classList.add("main-content--calendar-fit");
 document.getElementById("milestone-dismiss")?.addEventListener("click", closeMilestoneModal);
 document.getElementById("milestone-modal")?.querySelector(".milestone-backdrop")?.addEventListener("click", closeMilestoneModal);

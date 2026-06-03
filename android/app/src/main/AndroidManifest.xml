@@ -20,16 +20,11 @@
             </intent-filter>
         </activity>
 
-        <receiver
-            android:name=".DayWidgetProvider"
-            android:exported="true"
-            android:label="@string/widget_name">
+        <receiver android:name=".DayWidgetProvider" android:exported="true" android:label="@string/widget_name">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
             </intent-filter>
-            <meta-data
-                android:name="android.appwidget.provider"
-                android:resource="@xml/widget_day_info" />
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_day_info" />
         </receiver>
 
         <provider
