@@ -174,15 +174,28 @@ function renderRankBadgeSvg(rank, size = 48) {
   </svg>`;
 }
 
-function renderHeaderRankHtml(streak) {
+function renderHeaderRankHtml(streak, styleId = "classic") {
   const rank = getRankForStreak(streak);
+  const styleClass = `rank-style--${styleId || "classic"}`;
   return `
-    <button type="button" class="header-rank-btn" id="header-rank-btn" style="--rank-color: ${rank.color}" aria-label="查看军衔说明：${rank.name}，${getRankRangeLabel(rank)}" title="${rank.name} · ${getRankRangeLabel(rank)}">
-      ${renderRankBadgeSvg(rank, 32)}
+    <button type="button" class="header-rank-btn ${styleClass}" id="header-rank-btn" style="--rank-color: ${rank.color}" aria-label="查看军衔说明：${rank.name}，${getRankRangeLabel(rank)}" title="${rank.name} · ${getRankRangeLabel(rank)}">
+      ${renderRankBadgeSvg(rank, 36)}
       <span class="header-rank-name">${rank.name}</span>
       <span class="header-rank-range">${getRankRangeLabel(rank)}</span>
     </button>
   `;
+}
+
+const RANK_STYLE_PREVIEW_STREAK = 25;
+
+function renderRankStylePreviewHtml(styleId) {
+  const rank = getRankForStreak(RANK_STYLE_PREVIEW_STREAK);
+  const styleClass = `rank-style--${styleId || "classic"}`;
+  return `<span class="header-rank-btn ${styleClass}" style="--rank-color: ${rank.color}">
+    ${renderRankBadgeSvg(rank, 28)}
+    <span class="header-rank-name">${rank.name}</span>
+    <span class="header-rank-range">${getRankRangeLabel(rank)}</span>
+  </span>`;
 }
 
 function renderRankGuideListHtml(streak) {

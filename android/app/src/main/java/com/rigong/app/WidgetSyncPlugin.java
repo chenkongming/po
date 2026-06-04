@@ -20,11 +20,10 @@ public class WidgetSyncPlugin extends Plugin {
         prefs.edit()
             .putString("quote", call.getString("quote", ""))
             .putString("author", call.getString("author", ""))
-            .putInt("dayNum", call.getInt("dayNum", 1))
-            .putBoolean("checkedIn", call.getBoolean("checkedIn", false))
-            .putString("status", call.getString("status", ""))
-            .putString("statusLabel", call.getString("statusLabel", "未打卡"))
+            .putString("rankName", call.getString("rankName", "列兵"))
+            .putString("rankRange", call.getString("rankRange", "0–3 天"))
             .putInt("streakDays", call.getInt("streakDays", 0))
+            .putString("widgetStyle", call.getString("widgetStyle", "classic"))
             .apply();
 
         DayWidgetProvider.updateAll(ctx);

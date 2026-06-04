@@ -7,22 +7,23 @@ const STORAGE_KEYS = {
   shownAchievements: "shown_achievements",
   summaryStatsExpanded: "summary_stats_expanded",
   recordsFiltersExpanded: "records_filters_expanded",
-  notifications: "habit_notifications",
   appPinHash: "app_pin_hash",
+  widgetStyle: "widget_style",
+  headerRankStyle: "header_rank_style",
 };
 
 const APP_NAME = "365.dev";
 const BACKUP_VERSION = 4;
 const THEME_META = {
-  light: "#5c7289",
-  dawn: "#c4843a",
+  frost: "#e8f0fa",
   dark: "#0f1114",
-  sage: "#5a8a6a",
-  sand: "#9a8060",
   ink: "#2a3544",
-  dusk: "#3d2f3a",
+  graphite: "#181a1e",
+  steel: "#141a22",
 };
-const THEME_IDS = ["light", "dawn", "dark", "sage", "sand", "ink", "dusk"];
+const THEME_IDS = ["frost", "dark", "ink", "graphite", "steel"];
+const DARK_THEME_IDS = new Set(["dark", "ink", "graphite", "steel"]);
+const LEGACY_LIGHT_THEMES = new Set(["light", "dawn", "sage", "sand"]);
 const DEFAULT_ENCOURAGEMENT_LEVEL = "strong";
 const STREAK_MILESTONE_DAYS = [7, 14, 30, 60, 90];
 
@@ -40,20 +41,71 @@ const TRIGGER_MAP = {
   other: "其他",
 };
 
-const DEFAULT_NOTIFICATIONS = {
-  enabled: true,
-  time1: "12:00",
-  enable2: true,
-  time2: "23:00",
-};
-
-const NOTIFY_BODY_NOON_FALLBACK = "午间打卡——守住了就点「守住了」。";
-const NOTIFY_BODY_NIGHT_FALLBACK = "晚间打卡——记一下今天，守住了就点「守住了」。";
-
 const SESSION_IDS = ["night", "noon"];
+/** 日历单元格：左午右晚 */
+const CALENDAR_SESSION_ORDER = ["noon", "night"];
 const SESSION_META = {
   noon: { label: "午间打卡", short: "午", hint: "中午是高危时段，及时记一笔" },
   night: { label: "晚间打卡", short: "晚", hint: "回顾全天，守住再睡" },
+};
+
+const SWIPE_TAB_ORDER = ["calendar", "achievements", "memos", "summary"];
+const SWIPE_MIN_DISTANCE = 56;
+const SWIPE_EDGE_WIDTH = 28;
+
+const WIDGET_STYLE_IDS = ["classic", "minimal", "dark", "accent", "outline"];
+const WIDGET_STYLE_META = {
+  classic: { label: "墨蓝", rank: "上士", days: "42", range: "22–29 天" },
+  minimal: { label: "素白", rank: "上士", days: "42", range: "22–29 天" },
+  dark: { label: "纯黑", rank: "上士", days: "42", range: "22–29 天" },
+  accent: { label: "渐变", rank: "上士", days: "42", range: "22–29 天" },
+  outline: { label: "线框", rank: "上士", days: "42", range: "22–29 天" },
+};
+
+/** 打卡页左上角军衔卡片样式（20 款） */
+const HEADER_RANK_STYLE_IDS = [
+  "classic",
+  "minimal",
+  "glass",
+  "neon",
+  "outline",
+  "pill",
+  "square",
+  "medal",
+  "ribbon",
+  "dark",
+  "gold",
+  "frost",
+  "elevated",
+  "compact",
+  "layered",
+  "spectrum",
+  "solid",
+  "insignia",
+  "framed",
+  "aurora",
+];
+const HEADER_RANK_STYLE_META = {
+  classic: { label: "经典" },
+  minimal: { label: "极简" },
+  glass: { label: "磨砂" },
+  neon: { label: "霓虹" },
+  outline: { label: "线框" },
+  pill: { label: "胶囊" },
+  square: { label: "方正" },
+  medal: { label: "圆章" },
+  ribbon: { label: "绶带" },
+  dark: { label: "暗夜" },
+  gold: { label: "鎏金" },
+  frost: { label: "霜蓝" },
+  elevated: { label: "浮影" },
+  compact: { label: "紧凑" },
+  layered: { label: "叠层" },
+  spectrum: { label: "炫彩" },
+  solid: { label: "纯色" },
+  insignia: { label: "徽章" },
+  framed: { label: "画框" },
+  aurora: { label: "极光" },
 };
 
 const WEEKDAYS = ["日", "一", "二", "三", "四", "五", "六"];
@@ -283,6 +335,14 @@ function computeStreak(getDayFn) {
     else if (!dayHasAnySessionObj(day) && i > 0) break;
   }
   return streak;
+}
+
+function getTotalSoberDayCount() {
+  let count = 0;
+  Object.keys(checkins).forEach((key) => {
+    if (isDaySoberForStreak(getDayRecord(key))) count++;
+  });
+  return count;
 }
 
 /** 当前连续清醒天数（任一次没守住会归零） */
@@ -803,7 +863,9 @@ function renderHeaderRank() {
   const el = document.getElementById("header-rank");
   if (!el) return;
   const streak = getCurrentStreak();
-  el.innerHTML = renderHeaderRankHtml(streak);
+  const styleId = loadHeaderRankStyle();
+  el.dataset.rankStyle = styleId;
+  el.innerHTML = renderHeaderRankHtml(streak, styleId);
 }
 
 function renderHeaderRankProgress() {
@@ -838,13 +900,17 @@ function migrateShownAchievements() {
   if (earned.length) saveShownAchievements(earned);
 }
 
+function formatHeaderQuote(text) {
+  return String(text || "").replace(/^第\d+天[：:]\s*/, "");
+}
+
 function renderHeader() {
   renderHeaderRank();
   renderHeaderStreak();
   renderHeaderRankProgress();
   const quote = QUOTES[getTodayQuoteIndex()];
   const authorEl = document.getElementById("header-author");
-  document.getElementById("header-quote").textContent = quote.text;
+  document.getElementById("header-quote").textContent = formatHeaderQuote(quote.text);
   if (quote.author) {
     authorEl.textContent = `—— ${quote.author}`;
     authorEl.hidden = false;
@@ -853,96 +919,6 @@ function renderHeader() {
     authorEl.hidden = true;
   }
   syncWidgetData();
-}
-
-function loadNotificationSettings() {
-  return { ...DEFAULT_NOTIFICATIONS, ...loadJSON(STORAGE_KEYS.notifications, {}) };
-}
-
-function saveNotificationSettings(settings) {
-  saveJSON(STORAGE_KEYS.notifications, settings);
-}
-
-function parseTimeString(timeStr) {
-  const [h, m] = (timeStr || "23:00").split(":").map(Number);
-  return { hour: h || 0, minute: m || 0 };
-}
-
-async function scheduleHabitReminders() {
-  const cap = window.Capacitor;
-  if (!cap?.isNativePlatform?.()) return;
-  const settings = loadNotificationSettings();
-  try {
-    const LN = getCapacitorPlugin(cap, "LocalNotifications");
-    try {
-      await LN.requestPermissions();
-    } catch {
-      /* ignore */
-    }
-    const toCancel = [{ id: 1001 }, { id: 1002 }];
-    try {
-      await LN.cancel({ notifications: toCancel });
-    } catch {
-      /* ignore */
-    }
-    if (!settings.enabled) return;
-
-    const notifications = [];
-    const t1 = parseTimeString(settings.time1);
-    notifications.push({
-      id: 1001,
-      title: `${APP_NAME} · 午间`,
-      body: pickEnc("NOTIFY_NOON", 1) || NOTIFY_BODY_NOON_FALLBACK,
-      schedule: {
-        on: { hour: t1.hour, minute: t1.minute },
-        allowWhileIdle: true,
-        repeats: true,
-        every: "day",
-      },
-    });
-    if (settings.enable2) {
-      const t2 = parseTimeString(settings.time2);
-      notifications.push({
-        id: 1002,
-        title: `${APP_NAME} · 晚间`,
-        body: pickEnc("NOTIFY_NIGHT", 2) || NOTIFY_BODY_NIGHT_FALLBACK,
-        schedule: {
-          on: { hour: t2.hour, minute: t2.minute },
-          allowWhileIdle: true,
-          repeats: true,
-          every: "day",
-        },
-      });
-    }
-    await LN.schedule({ notifications });
-  } catch (err) {
-    console.warn("schedule notifications failed", err);
-  }
-}
-
-function renderNotificationSettings() {
-  const settings = loadNotificationSettings();
-  const enabledEl = document.getElementById("notify-enabled");
-  const time1El = document.getElementById("notify-time1");
-  const enable2El = document.getElementById("notify-enable2");
-  const time2El = document.getElementById("notify-time2");
-  if (!enabledEl) return;
-  enabledEl.checked = !!settings.enabled;
-  time1El.value = settings.time1 || "12:00";
-  enable2El.checked = settings.enable2 !== false;
-  time2El.value = settings.time2 || "23:00";
-}
-
-function saveNotificationSettingsFromForm() {
-  const settings = {
-    enabled: document.getElementById("notify-enabled").checked,
-    time1: document.getElementById("notify-time1").value || "12:00",
-    enable2: document.getElementById("notify-enable2").checked,
-    time2: document.getElementById("notify-time2").value || "23:00",
-  };
-  saveNotificationSettings(settings);
-  scheduleHabitReminders();
-  alert("提醒设置已保存");
 }
 
 function formatDisplayDate(dateKey) {
@@ -1127,8 +1103,8 @@ function renderMemoCard(memo) {
   return `
     <article class="memo-card${memo.pinned ? " is-pinned" : ""}" data-id="${memo.id}">
       <div class="memo-card-header">
-        <div class="memo-card-meta">
-          <div class="memo-card-head">
+        <div class="memo-card-head">
+          <div class="memo-card-head-left">
             ${memo.pinned ? `<span class="memo-pin-badge" title="已置顶" aria-label="已置顶">${renderMemoPinIcon()}</span>` : ""}
             <h3 class="memo-title">${escapeHtml(preview)}</h3>
           </div>
@@ -1202,22 +1178,15 @@ async function syncWidgetData() {
   try {
     const WidgetSync = getCapacitorPlugin(cap, "WidgetSync");
     const quote = QUOTES[getTodayQuoteIndex()];
-    const todayKey = getTodayKey();
-    const day = getDayRecord(todayKey);
-    const agg = getDayAggregateStatus(todayKey);
     const streak = getCurrentStreak();
+    const rank = getRankForStreak(streak);
     await WidgetSync.update({
       quote: quote.text,
       author: quote.author || "",
-      dayNum: getDayOfYear(new Date()),
-      checkedIn: dayHasAnySession(todayKey),
-      status: agg || "",
-      statusLabel: agg ? STATUS_MAP[agg].label : "未打卡",
+      rankName: rank.name,
+      rankRange: getRankRangeLabel(rank),
       streakDays: streak,
-      noonChecked: !!day.noon?.status,
-      nightChecked: !!day.night?.status,
-      noonStatus: day.noon?.status || "",
-      nightStatus: day.night?.status || "",
+      widgetStyle: loadWidgetStyle(),
     });
   } catch (err) {
     console.warn("widget sync failed", err);
@@ -1254,22 +1223,23 @@ async function initNativeBridge() {
   }
 
   syncWidgetData();
-  scheduleHabitReminders();
 }
 
 // ===== 主题 =====
 function loadTheme() {
   const saved = localStorage.getItem(STORAGE_KEYS.theme);
-  return THEME_IDS.includes(saved) ? saved : "light";
+  if (THEME_IDS.includes(saved)) return saved;
+  if (LEGACY_LIGHT_THEMES.has(saved)) return "frost";
+  return "frost";
 }
 
 function applyTheme(theme) {
-  const t = THEME_IDS.includes(theme) ? theme : "light";
+  const t = THEME_IDS.includes(theme) ? theme : "frost";
   document.documentElement.setAttribute("data-theme", t);
   localStorage.setItem(STORAGE_KEYS.theme, t);
   const meta = document.getElementById("meta-theme-color");
-  if (meta) meta.content = THEME_META[t] || THEME_META.light;
-  const isDark = t === "dark" || t === "ink" || t === "dusk";
+  if (meta) meta.content = THEME_META[t] || THEME_META.frost;
+  const isDark = DARK_THEME_IDS.has(t);
   document.querySelector("meta[name=color-scheme]")?.setAttribute(
     "content",
     isDark ? "dark" : "light"
@@ -1277,6 +1247,7 @@ function applyTheme(theme) {
   document.querySelectorAll(".theme-option").forEach((btn) => {
     btn.classList.toggle("active", btn.dataset.theme === t);
   });
+  renderHeaderRank();
 }
 
 function initTheme() {
@@ -1385,6 +1356,97 @@ document.getElementById("records-back-btn")?.addEventListener("click", () => {
   switchTab("achievements", { fromNav: true });
 });
 
+function getActiveNavTab() {
+  return document.querySelector(".nav-item.active")?.dataset.tab || "calendar";
+}
+
+function getSwipeContext() {
+  const dataPanel = document.getElementById("data-panel");
+  if (dataPanel && !dataPanel.classList.contains("hidden")) return "settings";
+  const rankPanel = document.getElementById("rank-panel");
+  if (rankPanel && !rankPanel.classList.contains("hidden")) return "rank";
+  const recordsPanel = document.getElementById("records-panel");
+  if (recordsPanel?.classList.contains("active")) return "records";
+  return getActiveNavTab();
+}
+
+function isSwipeGestureBlocked() {
+  if (!isAppUnlocked()) return true;
+  if (document.getElementById("lock-screen") && !document.getElementById("lock-screen").classList.contains("hidden")) {
+    return true;
+  }
+  return !!document.querySelector(".modal:not(.hidden)");
+}
+
+function handleSwipeBack(context) {
+  if (context === "settings") {
+    closeDataPanel();
+    return true;
+  }
+  if (context === "rank") {
+    closeRankPanel();
+    return true;
+  }
+  if (context === "records") {
+    switchTab("achievements", { fromNav: true });
+    return true;
+  }
+  return false;
+}
+
+function switchTabBySwipeOffset(context, direction) {
+  if (context === "records" || context === "settings" || context === "rank") {
+    return handleSwipeBack(context);
+  }
+  const index = SWIPE_TAB_ORDER.indexOf(context);
+  if (index < 0) return false;
+  const nextIndex = index + direction;
+  if (nextIndex < 0 || nextIndex >= SWIPE_TAB_ORDER.length) return false;
+  switchTab(SWIPE_TAB_ORDER[nextIndex], { fromNav: true });
+  return true;
+}
+
+function initSwipeNavigation() {
+  let startX = 0;
+  let startY = 0;
+  let fromRightEdge = false;
+  let tracking = false;
+
+  document.body.addEventListener(
+    "touchstart",
+    (e) => {
+      if (isSwipeGestureBlocked() || e.touches.length !== 1) return;
+      const touch = e.touches[0];
+      startX = touch.clientX;
+      startY = touch.clientY;
+      fromRightEdge = startX >= window.innerWidth - SWIPE_EDGE_WIDTH;
+      tracking = true;
+    },
+    { passive: true }
+  );
+
+  document.body.addEventListener(
+    "touchend",
+    (e) => {
+      if (!tracking) return;
+      tracking = false;
+      const touch = e.changedTouches[0];
+      const dx = touch.clientX - startX;
+      const dy = touch.clientY - startY;
+      if (Math.abs(dx) < SWIPE_MIN_DISTANCE || Math.abs(dx) < Math.abs(dy) * 1.15) return;
+
+      const context = getSwipeContext();
+      if (fromRightEdge && dx < 0) {
+        handleSwipeBack(context);
+        return;
+      }
+      if (dx < 0) switchTabBySwipeOffset(context, 1);
+      else switchTabBySwipeOffset(context, -1);
+    },
+    { passive: true }
+  );
+}
+
 function setSettingsButtonsVisible(visible) {
   const btn = document.querySelector("#app-header .open-settings-btn");
   if (btn) btn.classList.toggle("hidden", !visible);
@@ -1452,6 +1514,28 @@ function getTodayQuoteIndex() {
   return (getDayOfYear(new Date()) - 1) % QUOTES.length;
 }
 
+function renderLockRank() {
+  const streak = getCurrentStreak();
+  const longest = getLongestStreak();
+  const rank = getRankForStreak(streak);
+  const styleId = loadHeaderRankStyle();
+  const styleClass = `rank-style--${styleId || "classic"}`;
+  const rankEl = document.getElementById("lock-rank");
+  const encourageEl = document.getElementById("lock-encourage");
+  if (rankEl) {
+    rankEl.innerHTML = `
+      <span class="lock-rank-card header-rank-btn ${styleClass}" style="--rank-color: ${rank.color}">
+        ${renderRankBadgeSvg(rank, 48)}
+        <span class="header-rank-name">${rank.name}</span>
+        <span class="header-rank-range">${getRankRangeLabel(rank)}</span>
+      </span>
+    `;
+  }
+  if (encourageEl) {
+    encourageEl.textContent = getStreakHint(streak, longest) || "今天也要守住。";
+  }
+}
+
 function initSummaryStatsToggle() {
   const toggle = document.getElementById("summary-stats-toggle");
   const block = document.getElementById("summary-stats-block");
@@ -1480,7 +1564,7 @@ function appendDaySessionIcons(cell, dateKey) {
 
   const wrap = document.createElement("span");
   wrap.className = "day-session-icons";
-  SESSION_IDS.forEach((session) => {
+  CALENDAR_SESSION_ORDER.forEach((session) => {
     const rec = getSessionRecord(dateKey, session);
     const slot = document.createElement("span");
     slot.className = "day-session-slot";
@@ -1524,8 +1608,7 @@ function renderCalendar() {
     cell.dataset.dateKey = dateKey;
 
     if (dateKey === todayKey) {
-      const hasCheckin = SESSION_IDS.some((s) => getSessionRecord(dateKey, s)?.status);
-      if (!hasCheckin) cell.classList.add("today");
+      cell.classList.add("today");
       cell.setAttribute("aria-label", `${day}日（今天）`);
     }
     if (isDayDoubleSuccess(dateKey)) {
@@ -1700,17 +1783,31 @@ function renderAchievementBadgesFull() {
   badgesEl.innerHTML = achievementHtml;
 }
 
+function getAchievementDetailFilter() {
+  return (
+    document.querySelector(".achievement-filter-chips .filter-chip.active")?.dataset.value || ""
+  );
+}
+
 function renderAchievementPanel() {
   const listEl = document.getElementById("achievement-list");
   if (!listEl) return;
-  const list = getAchievementsList();
-  const earnedCount = list.filter((a) => a.earned).length;
+  const all = getAchievementsList();
+  const filter = getAchievementDetailFilter();
+  const list = all.filter((a) => {
+    if (filter === "earned") return a.earned;
+    if (filter === "locked") return !a.earned;
+    return true;
+  });
+  const earnedCount = all.filter((a) => a.earned).length;
 
   listEl.innerHTML = `
-    <p class="achievement-list-summary">已解锁 ${earnedCount} / ${list.length}</p>
-    ${list
-      .map(
-        (a) => `
+    <p class="achievement-list-summary">已解锁 ${earnedCount} / ${all.length}${filter ? ` · 显示 ${list.length} 项` : ""}</p>
+    ${
+      list.length
+        ? list
+            .map(
+              (a) => `
       <article class="achievement-list-item${a.earned ? " is-earned" : ""}">
         <div class="achievement-list-main">
           <span class="achievement-list-label">${escapeHtml(a.label)}</span>
@@ -1718,8 +1815,10 @@ function renderAchievementPanel() {
         </div>
         <span class="achievement-list-status">${a.earned ? "已解锁" : "未解锁"}</span>
       </article>`
-      )
-      .join("")}
+            )
+            .join("")
+        : '<p class="achievement-list-empty">没有符合条件的成就</p>'
+    }
   `;
 }
 
@@ -1760,11 +1859,23 @@ function renderCalendarReport() {
   `;
 }
 
+function renderSummaryHeadStats() {
+  const el = document.getElementById("summary-head-stats");
+  if (!el) return;
+  const totalDays = getTotalSoberDayCount();
+  const streak = getCurrentStreak();
+  el.innerHTML = `
+    <span class="summary-head-stat">守住 <strong class="summary-head-stat-num">${totalDays}</strong> 天</span>
+    <span class="summary-head-stat-sep" aria-hidden="true">·</span>
+    <span class="summary-head-stat">连续 <strong class="summary-head-stat-num">${streak}</strong> 天</span>
+  `;
+}
+
 function renderSummary() {
   renderYearCalendar(summaryYear);
+  renderSummaryHeadStats();
 
   const stats = getYearStats(summaryYear);
-  document.getElementById("summary-subtitle").textContent = `${summaryYear} 年记录`;
 
   const overviewEl = document.getElementById("summary-overview");
   if (!stats.total) {
@@ -1867,6 +1978,10 @@ function updateModalStatusSelection(status) {
   }
 }
 
+function getSessionTabLabel(session) {
+  return session === "noon" ? "中午" : "晚上";
+}
+
 function updateSessionTabsUI() {
   document.querySelectorAll(".session-tab").forEach((btn) => {
     const session = btn.dataset.session;
@@ -1875,6 +1990,12 @@ function updateSessionTabsUI() {
     btn.setAttribute("aria-selected", active ? "true" : "false");
     const rec = getSessionRecord(selectedDateKey, session);
     btn.classList.toggle("done", !!rec?.status);
+    const label = getSessionTabLabel(session);
+    if (rec?.status) {
+      btn.innerHTML = `${label}<span class="session-tab-status status-icon ${STATUS_MAP[rec.status].class}" aria-hidden="true">${STATUS_MAP[rec.status].icon}</span>`;
+    } else {
+      btn.textContent = label;
+    }
   });
 }
 
@@ -1895,7 +2016,7 @@ function openModal(dateKey, session = null) {
   const { year, month, day } = parseDateKey(dateKey);
 
   document.getElementById("modal-date").textContent =
-    `${year}年${month + 1}月${day}日 · ${SESSION_META[selectedSession].label}`;
+    `${year}年${month + 1}月${day}日`;
   loadSessionIntoModal();
   modal.classList.remove("hidden");
 }
@@ -1958,10 +2079,7 @@ function buildMiniDayHtml(year, month, dayNum, todayKey) {
   const dateKey = formatDateKey(year, month, dayNum);
   const agg = getDayAggregateStatus(dateKey);
   let cls = "mini-day mini-day--readonly";
-  if (dateKey === todayKey) {
-    const hasCheckin = SESSION_IDS.some((s) => getSessionRecord(dateKey, s)?.status);
-    if (!hasCheckin) cls += " today";
-  }
+  if (dateKey === todayKey) cls += " today";
   if (agg) cls += ` status-${agg}`;
 
   const dayRecord = getDayRecord(dateKey);
@@ -1976,7 +2094,7 @@ function buildMiniDayHtml(year, month, dayNum, todayKey) {
       statusHtml = `<span class="mini-day-icon status-icon ${STATUS_MAP[agg].class}">${STATUS_MAP[agg].icon}</span>`;
     } else {
       statusHtml = '<span class="mini-day-sessions">';
-      SESSION_IDS.forEach((session) => {
+      CALENDAR_SESSION_ORDER.forEach((session) => {
         const st = dayRecord[session]?.status;
         const slotCls = st ? `filled status-${st}` : "empty";
         const text = st ? STATUS_MAP[st].icon : SESSION_META[session].short;
@@ -2145,7 +2263,7 @@ document.querySelectorAll(".session-tab").forEach((btn) => {
     loadSessionIntoModal();
     const { year, month, day } = parseDateKey(selectedDateKey);
     document.getElementById("modal-date").textContent =
-      `${year}年${month + 1}月${day}日 · ${SESSION_META[selectedSession].label}`;
+      `${year}年${month + 1}月${day}日`;
   });
 });
 
@@ -2204,6 +2322,19 @@ function filterRecordEntries(entries) {
     if (session && entry.session !== session) return false;
     if (!matchesRecordsPeriod(entry.dateKey, period)) return false;
     return true;
+  });
+}
+
+function initAchievementFilter() {
+  document.querySelectorAll(".achievement-filter-chips").forEach((group) => {
+    group.addEventListener("click", (e) => {
+      const chip = e.target.closest(".filter-chip");
+      if (!chip || !group.contains(chip)) return;
+      group.querySelectorAll(".filter-chip").forEach((btn) => {
+        btn.classList.toggle("active", btn === chip);
+      });
+      renderAchievementPanel();
+    });
   });
 }
 
@@ -2558,7 +2689,6 @@ function buildExportPayload() {
     data: {
       checkins,
       memos,
-      notifications: loadNotificationSettings(),
       encouragementLevel: getEncouragementLevel(),
       shownAchievements: loadShownAchievements(),
     },
@@ -2574,7 +2704,6 @@ function normalizeImportPayload(raw) {
     return {
       checkins: raw.data.checkins ?? {},
       memos: raw.data.memos ?? [],
-      notifications: raw.data.notifications,
       encouragementLevel: raw.data.encouragementLevel,
       shownAchievements: raw.data.shownAchievements,
     };
@@ -2584,7 +2713,6 @@ function normalizeImportPayload(raw) {
     return {
       checkins: raw.checkins ?? {},
       memos: raw.memos ?? [],
-      notifications: raw.notifications,
       encouragementLevel: raw.encouragementLevel,
       shownAchievements: raw.shownAchievements,
     };
@@ -2616,15 +2744,79 @@ function reloadAppData() {
   renderMemos();
   renderDataPanel();
   syncWidgetData();
-  scheduleHabitReminders();
 }
 
 function renderDataPanel() {
   const { checkinCount, memoCount } = getDataStats();
   document.getElementById("data-stats").textContent =
     `当前：${checkinCount} 条打卡 · ${memoCount} 条备忘录`;
-  renderNotificationSettings();
+  renderWidgetStyleOptions();
+  renderHeaderRankStyleOptions();
   renderPinSettingsForm();
+}
+
+function loadWidgetStyle() {
+  const saved = localStorage.getItem(STORAGE_KEYS.widgetStyle);
+  return WIDGET_STYLE_IDS.includes(saved) ? saved : "classic";
+}
+
+function saveWidgetStyle(style) {
+  const next = WIDGET_STYLE_IDS.includes(style) ? style : "classic";
+  localStorage.setItem(STORAGE_KEYS.widgetStyle, next);
+  document.querySelectorAll(".widget-style-option").forEach((btn) => {
+    btn.classList.toggle("active", btn.dataset.style === next);
+  });
+  syncWidgetData();
+}
+
+function renderWidgetStyleOptions() {
+  const container = document.getElementById("widget-style-options");
+  if (!container) return;
+  const current = loadWidgetStyle();
+  container.innerHTML = WIDGET_STYLE_IDS.map((id) => {
+    const meta = WIDGET_STYLE_META[id];
+    return `<button type="button" class="widget-style-option${id === current ? " active" : ""}" data-style="${id}">
+      <span class="widget-style-preview widget-style-preview--${id}" aria-hidden="true">
+        <span class="widget-preview-rank">${meta.rank}</span>
+        <span class="widget-preview-days">${meta.days}</span>
+        <span class="widget-preview-range">${meta.range}</span>
+      </span>
+      <span class="widget-style-label">${meta.label}</span>
+    </button>`;
+  }).join("");
+  container.querySelectorAll(".widget-style-option").forEach((btn) => {
+    btn.addEventListener("click", () => saveWidgetStyle(btn.dataset.style));
+  });
+}
+
+function loadHeaderRankStyle() {
+  const saved = localStorage.getItem(STORAGE_KEYS.headerRankStyle);
+  return HEADER_RANK_STYLE_IDS.includes(saved) ? saved : "classic";
+}
+
+function saveHeaderRankStyle(style) {
+  const next = HEADER_RANK_STYLE_IDS.includes(style) ? style : "classic";
+  localStorage.setItem(STORAGE_KEYS.headerRankStyle, next);
+  document.querySelectorAll(".rank-style-option").forEach((btn) => {
+    btn.classList.toggle("active", btn.dataset.style === next);
+  });
+  renderHeaderRank();
+}
+
+function renderHeaderRankStyleOptions() {
+  const container = document.getElementById("header-rank-style-options");
+  if (!container) return;
+  const current = loadHeaderRankStyle();
+  container.innerHTML = HEADER_RANK_STYLE_IDS.map((id) => {
+    const meta = HEADER_RANK_STYLE_META[id];
+    return `<button type="button" class="rank-style-option${id === current ? " active" : ""}" data-style="${id}">
+      <span class="rank-style-option-preview" aria-hidden="true">${renderRankStylePreviewHtml(id)}</span>
+      <span class="rank-style-option-label">${meta.label}</span>
+    </button>`;
+  }).join("");
+  container.querySelectorAll(".rank-style-option").forEach((btn) => {
+    btn.addEventListener("click", () => saveHeaderRankStyle(btn.dataset.style));
+  });
 }
 
 // ===== 应用密码 =====
@@ -2667,18 +2859,34 @@ function isAppUnlocked() {
   return !isPinConfigured() || sessionStorage.getItem(PIN_SESSION_KEY) === "1";
 }
 
+function hideLockError() {
+  const errorEl = document.getElementById("lock-error");
+  if (!errorEl) return;
+  errorEl.hidden = true;
+  errorEl.textContent = "";
+  errorEl.removeAttribute("role");
+}
+
+function showLockError(message = "密码错误，请重试") {
+  const errorEl = document.getElementById("lock-error");
+  if (!errorEl) return;
+  errorEl.textContent = message;
+  errorEl.hidden = false;
+  errorEl.setAttribute("role", "alert");
+}
+
 function showLockScreen() {
   const screen = document.getElementById("lock-screen");
   const input = document.getElementById("lock-pin-input");
-  const errorEl = document.getElementById("lock-error");
   if (!screen) return;
+  renderLockRank();
+  hideLockError();
   screen.classList.remove("hidden");
   screen.setAttribute("aria-hidden", "false");
   document.body.classList.add("body-locked");
-  if (errorEl) errorEl.classList.add("hidden");
   if (input) {
     input.value = "";
-    setTimeout(() => input.focus(), 60);
+    setTimeout(() => input.focus(), 120);
   }
 }
 
@@ -2712,17 +2920,18 @@ async function unlockAppWithPin(pin) {
 
 async function handleLockSubmit() {
   const input = document.getElementById("lock-pin-input");
-  const errorEl = document.getElementById("lock-error");
   if (!input) return;
-  const ok = await unlockAppWithPin(input.value);
+  const normalized = normalizePinInput(input.value);
+  if (!isValidPin(normalized)) return;
+  const ok = await unlockAppWithPin(normalized);
   if (!ok) {
-    errorEl?.classList.remove("hidden");
+    showLockError();
     input.value = "";
     input.focus();
     hapticImpact("Light");
     return;
   }
-  errorEl?.classList.add("hidden");
+  hideLockError();
 }
 
 function renderPinSettingsForm() {
@@ -2734,7 +2943,7 @@ function renderPinSettingsForm() {
   if (descEl) {
     descEl.textContent = configured
       ? "已启用数字密码，可修改或清除"
-      : "设置 4–8 位数字密码，启动时需验证后才能进入";
+      : "设置 4–8 位数字密码，启动时将先显示军衔与鼓励语，再验证进入";
   }
 
   if (!configured) {
@@ -2832,7 +3041,7 @@ function initAppLock() {
   });
   document.getElementById("lock-pin-input")?.addEventListener("input", (e) => {
     e.target.value = normalizePinInput(e.target.value);
-    document.getElementById("lock-error")?.classList.add("hidden");
+    hideLockError();
   });
 }
 
@@ -2914,12 +3123,6 @@ function importAllData(payload) {
       pinned: !!memo.pinned,
     }))
   );
-  if (normalized.notifications && typeof normalized.notifications === "object") {
-    saveNotificationSettings({
-      ...DEFAULT_NOTIFICATIONS,
-      ...normalized.notifications,
-    });
-  }
   if (
     normalized.encouragementLevel &&
     ENCOURAGEMENT_LEVELS.includes(normalized.encouragementLevel)
@@ -2935,7 +3138,6 @@ function importAllData(payload) {
   reloadAppData();
 }
 
-document.getElementById("save-notify-btn")?.addEventListener("click", saveNotificationSettingsFromForm);
 document.getElementById("export-data-btn").addEventListener("click", exportAllData);
 
 document.getElementById("import-data-btn").addEventListener("click", () => {
@@ -2982,9 +3184,11 @@ initTheme();
 initEncouragementLevel();
 initSummaryStatsToggle();
 initRecordsFilters();
+initAchievementFilter();
 initRecordsFilterToggle();
 initMemoLongPress();
 initAppLock();
+initSwipeNavigation();
 document.getElementById("main-view")?.classList.add("main-content--calendar-fit");
 document.getElementById("milestone-dismiss")?.addEventListener("click", closeMilestoneModal);
 document.getElementById("milestone-modal")?.querySelector(".milestone-backdrop")?.addEventListener("click", closeMilestoneModal);

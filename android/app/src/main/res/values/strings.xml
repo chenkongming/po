@@ -4,6 +4,6 @@
     <string name="title_activity_main">365.dev</string>
     <string name="package_name">com.rigong.app</string>
     <string name="custom_url_scheme">com.rigong.app</string>
-    <string name="widget_name">365.dev 今日</string>
-    <string name="widget_description">今日语录与打卡状态，一键打开打卡</string>
+    <string name="widget_name">365.dev 军衔</string>
+    <string name="widget_description">1×1 军衔卡片，显示等级与守住天数</string>
 </resources>

@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="zh-CN" data-theme="light">
+<html lang="zh-CN" data-theme="frost">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <meta name="theme-color" content="#5a7fa8" id="meta-theme-color">
+  <meta name="theme-color" content="#e8f0fa" id="meta-theme-color">
   <meta name="color-scheme" content="light">
   <title>365.dev</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -13,22 +13,26 @@
 </head>
 <body>
   <div id="lock-screen" class="lock-screen hidden" aria-hidden="true">
-    <div class="lock-screen-card">
-      <h1 class="lock-screen-title">365.dev</h1>
-      <p class="lock-screen-desc">请输入数字密码进入</p>
-      <input
-        type="password"
-        id="lock-pin-input"
-        class="lock-pin-input"
-        inputmode="numeric"
-        pattern="[0-9]*"
-        maxlength="8"
-        autocomplete="off"
-        aria-label="数字密码"
-        placeholder="••••"
-      />
-      <p class="lock-error hidden" id="lock-error" role="alert">密码错误，请重试</p>
-      <button type="button" id="lock-submit-btn" class="btn-primary lock-submit-btn">进入</button>
+    <div class="lock-screen-inner">
+      <section class="lock-rank-block" aria-label="当前军衔">
+        <div class="lock-rank" id="lock-rank"></div>
+        <p class="lock-encourage" id="lock-encourage"></p>
+      </section>
+      <section class="lock-pin-block" aria-label="密码验证">
+        <input
+          type="password"
+          id="lock-pin-input"
+          class="lock-pin-input"
+          inputmode="numeric"
+          pattern="[0-9]*"
+          maxlength="8"
+          autocomplete="off"
+          aria-label="数字密码"
+          placeholder="••••"
+        />
+        <p id="lock-error" class="lock-error" hidden></p>
+        <button type="button" id="lock-submit-btn" class="btn-primary lock-submit-btn">进入</button>
+      </section>
     </div>
   </div>
 
@@ -62,7 +66,6 @@
             <span class="legend-item"><span class="status-icon success">✓</span> 守住了</span>
             <span class="legend-item"><span class="status-icon partial">○</span> 差点犯</span>
             <span class="legend-item"><span class="status-icon fail">✗</span> 没守住</span>
-            <span class="legend-item legend-sessions">晚 / 午</span>
           </div>
 
           <div class="calendar-body">
@@ -100,6 +103,13 @@
           </div>
           <div class="achievements-list-block">
             <p class="habit-insight-title">成就详情</p>
+            <div class="achievement-filter-row">
+              <div class="records-filter-chips achievement-filter-chips">
+                <button type="button" class="filter-chip active" data-value="">全部</button>
+                <button type="button" class="filter-chip" data-value="earned">已解锁</button>
+                <button type="button" class="filter-chip" data-value="locked">未解锁</button>
+              </div>
+            </div>
             <div class="achievement-list" id="achievement-list"></div>
           </div>
         </div>
@@ -109,7 +119,7 @@
         <div class="panel-head panel-head-row">
           <div class="panel-head-main">
             <h2>全年日历</h2>
-            <p class="panel-subtitle" id="summary-subtitle"></p>
+            <div class="summary-head-stats" id="summary-head-stats" aria-live="polite"></div>
           </div>
         </div>
         <div class="year-calendar-section">
@@ -176,11 +186,15 @@
         <div class="memos-header">
           <div class="panel-head panel-head-row">
             <div class="panel-head-main">
-              <h2>提示</h2>
+              <h2>备忘录</h2>
               <p class="panel-subtitle memos-count" id="memos-count"></p>
             </div>
           </div>
-          <button id="new-memo-btn" class="btn-primary btn-fab">+ 新建</button>
+          <button type="button" id="new-memo-btn" class="memo-fab-btn" aria-label="新建备忘录">
+            <svg class="memo-fab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+              <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+            </svg>
+          </button>
         </div>
         <div class="memos-list" id="memos-list"></div>
       </section>
@@ -200,11 +214,11 @@
         </svg>
         <span class="nav-label">成就</span>
       </button>
-      <button type="button" class="nav-item" data-tab="memos" aria-label="提示">
+      <button type="button" class="nav-item" data-tab="memos" aria-label="备忘录">
         <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
           <path d="M9 18h6"/><path d="M10 22h4"/><path d="M12 2a7 7 0 0 0-4 12.7V17h8v-2.3A7 7 0 0 0 12 2z"/>
         </svg>
-        <span class="nav-label">提示</span>
+        <span class="nav-label">备忘录</span>
       </button>
       <button type="button" class="nav-item" data-tab="summary" aria-label="全年">
         <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
@@ -230,43 +244,31 @@
 
         <section class="settings-block">
           <h3 class="settings-block-title">主题</h3>
-          <p class="settings-block-desc">雾蓝更柔和；晨曦金更有能量；也可切换松绿、沙棕或深色风格</p>
+          <p class="settings-block-desc">蓝白浅色，或深色、墨蓝、石墨、钢蓝</p>
           <div class="theme-options" id="theme-options">
-            <button type="button" class="theme-option active" data-theme="light">雾蓝</button>
-            <button type="button" class="theme-option" data-theme="dawn">晨曦金</button>
-            <button type="button" class="theme-option" data-theme="sage">松绿</button>
-            <button type="button" class="theme-option" data-theme="sand">沙棕</button>
+            <button type="button" class="theme-option active" data-theme="frost">蓝白</button>
             <button type="button" class="theme-option" data-theme="dark">深色</button>
             <button type="button" class="theme-option" data-theme="ink">墨蓝</button>
-            <button type="button" class="theme-option" data-theme="dusk">暮色</button>
+            <button type="button" class="theme-option" data-theme="graphite">石墨</button>
+            <button type="button" class="theme-option" data-theme="steel">钢蓝</button>
           </div>
         </section>
 
         <section class="settings-block">
-          <h3 class="settings-block-title">每日提醒</h3>
-          <p class="settings-block-desc">午间与晚间各一次打卡提醒，中午是高危时段，及时反馈很重要</p>
-          <label class="settings-check-label">
-            <input type="checkbox" id="notify-enabled" />
-            <span>开启提醒</span>
-          </label>
-          <div class="notify-time-row">
-            <label class="settings-field-label" for="notify-time1">午间提醒</label>
-            <input type="time" id="notify-time1" class="settings-time-input" value="12:00" />
-          </div>
-          <label class="settings-check-label">
-            <input type="checkbox" id="notify-enable2" checked />
-            <span>开启晚间提醒</span>
-          </label>
-          <div class="notify-time-row">
-            <label class="settings-field-label" for="notify-time2">晚间提醒</label>
-            <input type="time" id="notify-time2" class="settings-time-input" value="23:00" />
-          </div>
-          <button type="button" id="save-notify-btn" class="btn-secondary">保存提醒设置</button>
+          <h3 class="settings-block-title">打卡页军衔</h3>
+          <p class="settings-block-desc">左上角军衔卡片外观，共 20 款可选</p>
+          <div class="rank-style-options" id="header-rank-style-options"></div>
+        </section>
+
+        <section class="settings-block">
+          <h3 class="settings-block-title">桌面小组件</h3>
+          <p class="settings-block-desc">1×1 军衔卡片样式，修改后请重新添加或等待小组件刷新</p>
+          <div class="widget-style-options" id="widget-style-options"></div>
         </section>
 
         <section class="settings-block" id="pin-settings-block">
           <h3 class="settings-block-title">应用密码</h3>
-          <p class="settings-block-desc" id="pin-settings-desc">设置 4–8 位数字密码，启动时需验证后才能进入</p>
+          <p class="settings-block-desc" id="pin-settings-desc">设置 4–8 位数字密码，启动时将先显示军衔与守住天数，再验证进入</p>
           <div class="pin-settings-form" id="pin-settings-form"></div>
         </section>
 
@@ -327,8 +329,8 @@
     <div class="modal-content checkin-modal-content">
       <h3 id="modal-date"></h3>
       <div class="session-tabs" role="tablist" aria-label="打卡场次">
-        <button type="button" class="session-tab" data-session="night" role="tab" aria-selected="false">晚间</button>
-        <button type="button" class="session-tab active" data-session="noon" role="tab" aria-selected="true">午间</button>
+        <button type="button" class="session-tab active" data-session="noon" role="tab" aria-label="午间打卡" aria-selected="true">中午</button>
+        <button type="button" class="session-tab" data-session="night" role="tab" aria-label="晚间打卡" aria-selected="false">晚上</button>
       </div>
       <div class="status-options">
         <button type="button" class="status-btn success" data-status="success"><span class="status-icon success">✓</span><span>守住了</span></button>
