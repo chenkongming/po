@@ -51,7 +51,8 @@ const SESSION_META = {
 
 const SWIPE_TAB_ORDER = ["calendar", "achievements", "memos", "summary"];
 const SWIPE_MIN_DISTANCE = 56;
-const SWIPE_EDGE_WIDTH = 28;
+const SWIPE_EDGE_WIDTH = 40;
+let activeMainTab = "calendar";
 
 const WIDGET_STYLE_IDS = ["classic", "minimal", "dark", "accent", "outline"];
 const WIDGET_STYLE_META = {
@@ -866,6 +867,23 @@ function renderHeaderRank() {
   const styleId = loadHeaderRankStyle();
   el.dataset.rankStyle = styleId;
   el.innerHTML = renderHeaderRankHtml(streak, styleId);
+  syncHeaderRankLayout();
+}
+
+function syncHeaderRankLayout() {
+  const rankHost = document.getElementById("header-rank");
+  const streak = document.getElementById("header-streak");
+  const btn = rankHost?.querySelector(".header-rank-btn");
+  if (!streak) return;
+  const apply = () => {
+    if (btn) {
+      streak.style.minHeight = `${btn.offsetHeight}px`;
+    } else {
+      streak.style.minHeight = "";
+    }
+  };
+  apply();
+  requestAnimationFrame(apply);
 }
 
 function renderHeaderRankProgress() {
@@ -889,6 +907,7 @@ function renderHeaderStreak() {
     </div>
     ${hint ? `<p class="header-streak-sub">${hint}</p>` : ""}
   `;
+  syncHeaderRankLayout();
 }
 
 function migrateShownAchievements() {
@@ -1132,6 +1151,7 @@ let selectedDateKey = null;
 const checkins = migrateCheckins(loadJSON(STORAGE_KEYS.checkins, {}));
 let memos = loadMemos();
 let editingMemoId = null;
+let memosPageTab = "memos";
 
 let summaryYear = new Date().getFullYear();
 let selectedModalStatus = "success";
@@ -1319,45 +1339,75 @@ function updateHeaderVisibility(tabName) {
 }
 
 function switchTab(tabName, options = {}) {
-  const { fromNav = true } = options;
+  const { slideDirection = 0 } = options;
+  const newPanelId = `${tabName}-panel`;
+  activeMainTab = tabName;
+
   document.querySelectorAll(".nav-item").forEach((item) => {
-    item.classList.toggle("active", fromNav && item.dataset.tab === tabName);
+    const isActive = item.dataset.tab === tabName;
+    item.classList.toggle("active", isActive);
+    item.setAttribute("aria-current", isActive ? "page" : "false");
   });
+
   document.querySelectorAll("#main-view .panel").forEach((panel) => {
-    panel.classList.toggle("active", panel.id === `${tabName}-panel`);
+    const isActive = panel.id === newPanelId;
+    panel.classList.toggle("active", isActive);
+    panel.classList.remove("panel-slide-in-left", "panel-slide-in-right");
+    if (isActive && slideDirection !== 0) {
+      panel.classList.add(slideDirection > 0 ? "panel-slide-in-right" : "panel-slide-in-left");
+    }
   });
 
   const mainView = document.getElementById("main-view");
   if (mainView) {
     mainView.classList.toggle(
       "main-content--nav-gap",
-      tabName === "summary" || tabName === "memos" || tabName === "achievements" || tabName === "records"
+      tabName === "summary" || tabName === "memos" || tabName === "achievements"
     );
     mainView.classList.toggle("main-content--calendar-fit", tabName === "calendar");
   }
 
   updateHeaderVisibility(tabName);
 
-  if (tabName === "records") renderRecords();
-  if (tabName === "memos") renderMemos();
+  if (tabName === "memos") {
+    updateMemosPageToolbar();
+    if (memosPageTab === "records") renderRecords();
+    else renderMemos();
+  }
   if (tabName === "achievements") renderAchievements();
   if (tabName === "summary") renderSummary();
 }
 
+function updateMemosPageToolbar() {
+  const isMemos = memosPageTab === "memos";
+  document.getElementById("new-memo-btn")?.classList.toggle("hidden", !isMemos);
+  document.getElementById("records-filter-toggle")?.classList.toggle("hidden", isMemos);
+  document.getElementById("memos-page-memos")?.classList.toggle("hidden", !isMemos);
+  document.getElementById("memos-page-records")?.classList.toggle("hidden", isMemos);
+  document.querySelectorAll(".memos-page-tab").forEach((btn) => {
+    const active = btn.dataset.memosTab === memosPageTab;
+    btn.classList.toggle("active", active);
+    btn.setAttribute("aria-selected", active ? "true" : "false");
+  });
+}
+
+function switchMemosPageTab(tab) {
+  memosPageTab = tab === "records" ? "records" : "memos";
+  updateMemosPageToolbar();
+  if (memosPageTab === "records") renderRecords();
+  else renderMemos();
+}
+
 document.querySelectorAll(".nav-item").forEach((item) => {
-  item.addEventListener("click", () => switchTab(item.dataset.tab, { fromNav: true }));
+  item.addEventListener("click", () => switchTab(item.dataset.tab));
 });
 
-document.getElementById("achievements-open-records")?.addEventListener("click", () => {
-  switchTab("records", { fromNav: false });
-});
-
-document.getElementById("records-back-btn")?.addEventListener("click", () => {
-  switchTab("achievements", { fromNav: true });
+document.querySelectorAll(".memos-page-tab").forEach((btn) => {
+  btn.addEventListener("click", () => switchMemosPageTab(btn.dataset.memosTab));
 });
 
 function getActiveNavTab() {
-  return document.querySelector(".nav-item.active")?.dataset.tab || "calendar";
+  return activeMainTab;
 }
 
 function getSwipeContext() {
@@ -1365,8 +1415,7 @@ function getSwipeContext() {
   if (dataPanel && !dataPanel.classList.contains("hidden")) return "settings";
   const rankPanel = document.getElementById("rank-panel");
   if (rankPanel && !rankPanel.classList.contains("hidden")) return "rank";
-  const recordsPanel = document.getElementById("records-panel");
-  if (recordsPanel?.classList.contains("active")) return "records";
+  if (getActiveNavTab() === "memos" && memosPageTab === "records") return "memos-records";
   return getActiveNavTab();
 }
 
@@ -1387,28 +1436,29 @@ function handleSwipeBack(context) {
     closeRankPanel();
     return true;
   }
-  if (context === "records") {
-    switchTab("achievements", { fromNav: true });
+  if (context === "memos-records") {
+    switchMemosPageTab("memos");
     return true;
   }
   return false;
 }
 
 function switchTabBySwipeOffset(context, direction) {
-  if (context === "records" || context === "settings" || context === "rank") {
+  if (context === "memos-records" || context === "settings" || context === "rank") {
     return handleSwipeBack(context);
   }
   const index = SWIPE_TAB_ORDER.indexOf(context);
   if (index < 0) return false;
   const nextIndex = index + direction;
   if (nextIndex < 0 || nextIndex >= SWIPE_TAB_ORDER.length) return false;
-  switchTab(SWIPE_TAB_ORDER[nextIndex], { fromNav: true });
+  switchTab(SWIPE_TAB_ORDER[nextIndex], { slideDirection: direction });
   return true;
 }
 
 function initSwipeNavigation() {
   let startX = 0;
   let startY = 0;
+  let fromLeftEdge = false;
   let fromRightEdge = false;
   let tracking = false;
 
@@ -1419,7 +1469,12 @@ function initSwipeNavigation() {
       const touch = e.touches[0];
       startX = touch.clientX;
       startY = touch.clientY;
-      fromRightEdge = startX >= window.innerWidth - SWIPE_EDGE_WIDTH;
+      const edgeWidth = Math.max(
+        SWIPE_EDGE_WIDTH,
+        parseInt(getComputedStyle(document.documentElement).getPropertyValue("--page-gutter"), 10) + 24 || SWIPE_EDGE_WIDTH
+      );
+      fromLeftEdge = startX <= edgeWidth;
+      fromRightEdge = startX >= window.innerWidth - edgeWidth;
       tracking = true;
     },
     { passive: true }
@@ -1436,10 +1491,10 @@ function initSwipeNavigation() {
       if (Math.abs(dx) < SWIPE_MIN_DISTANCE || Math.abs(dx) < Math.abs(dy) * 1.15) return;
 
       const context = getSwipeContext();
-      if (fromRightEdge && dx < 0) {
-        handleSwipeBack(context);
-        return;
-      }
+      const edgeBack =
+        (fromLeftEdge && dx > 0) || (fromRightEdge && dx < 0);
+      if (edgeBack && handleSwipeBack(context)) return;
+
       if (dx < 0) switchTabBySwipeOffset(context, 1);
       else switchTabBySwipeOffset(context, -1);
     },
@@ -1704,13 +1759,6 @@ function renderAchievements() {
   renderAchievementPanel();
 }
 
-function renderAchievementMedalSvg() {
-  return `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-    <path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0V4z" stroke="#c9a227" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-    <path d="M5 4H3v1a4 4 0 0 0 4 4M19 4h2v1a4 4 0 0 1-4 4" stroke="#d4af37" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-  </svg>`;
-}
-
 function renderCalendarAchievements() {
   const el = document.getElementById("calendar-achievements");
   if (!el) return;
@@ -1720,6 +1768,7 @@ function renderCalendarAchievements() {
   const upcoming = list.filter((a) => !a.earned).slice(0, 3);
   const pct = list.length ? Math.round((earned.length / list.length) * 100) : 0;
   const cheerLine = getAchievementCheerLine(earned.length, list.length);
+  const lockedCount = list.length - earned.length;
 
   const earnedHtml = earned
     .slice(-5)
@@ -1738,26 +1787,27 @@ function renderCalendarAchievements() {
     .join("");
 
   el.innerHTML = `
-    <div class="calendar-achievements-card">
-      <div class="calendar-achievements-glow" aria-hidden="true"></div>
-      <div class="calendar-achievements-head">
-        <div class="calendar-achievements-head-main">
-          <span class="calendar-achievements-medal" aria-hidden="true">${renderAchievementMedalSvg()}</span>
-          <div class="calendar-achievements-head-text">
-            <span class="calendar-achievements-title">我的战绩</span>
-            <p class="calendar-achievements-cheer">${escapeHtml(cheerLine)}</p>
-          </div>
+    <div class="calendar-report-card">
+      <p class="calendar-report-title">我的战绩</p>
+      <div class="calendar-report-grid">
+        <div class="calendar-report-stat">
+          <span class="calendar-report-num">${earned.length}</span>
+          <span class="calendar-report-label">已解锁勋章</span>
         </div>
-        <div class="calendar-achievements-actions">
-          <span class="calendar-achievements-count">${earned.length}/${list.length}</span>
+        <div class="calendar-report-stat">
+          <span class="calendar-report-num">${pct}%</span>
+          <span class="calendar-report-label">解锁进度</span>
+        </div>
+        <div class="calendar-report-stat">
+          <span class="calendar-report-num">${lockedCount}</span>
+          <span class="calendar-report-label">待解锁</span>
+        </div>
+        <div class="calendar-report-stat highlight">
+          <span class="calendar-report-num">${list.length}</span>
+          <span class="calendar-report-label">全部勋章</span>
         </div>
       </div>
-      <div class="calendar-achievements-progress-wrap">
-        <div class="calendar-achievements-progress-track" role="progressbar" aria-valuenow="${pct}" aria-valuemin="0" aria-valuemax="100">
-          <span class="calendar-achievements-progress-fill" style="width:${pct}%"></span>
-        </div>
-        <span class="calendar-achievements-progress-label">已解锁 ${pct}%</span>
-      </div>
+      <p class="calendar-report-foot">${escapeHtml(cheerLine)}</p>
       <div class="calendar-achievements-badges">${earnedHtml || '<span class="calendar-achievements-empty">完成打卡，第一枚勋章马上属于你</span>'}${upcomingHtml}</div>
     </div>
   `;
@@ -2375,20 +2425,22 @@ function initRecordsFilterToggle() {
 
 function renderRecords() {
   const listEl = document.getElementById("records-list");
-  const countEl = document.getElementById("records-count");
+  const subtitleEl = document.getElementById("memos-page-subtitle");
   const allEntries = collectRecordEntries();
   const entries = filterRecordEntries(allEntries);
   const filters = getRecordsFilterValues();
   const hasFilter = !!(filters.status || filters.session || filters.period);
 
-  if (hasFilter) {
-    countEl.textContent = entries.length
-      ? `筛选结果 ${entries.length} 条 · 共 ${allEntries.length} 条`
-      : allEntries.length
-        ? `筛选结果 0 条 · 共 ${allEntries.length} 条`
-        : "";
-  } else {
-    countEl.textContent = entries.length ? `共 ${entries.length} 条记录` : "";
+  if (subtitleEl && memosPageTab === "records") {
+    if (hasFilter) {
+      subtitleEl.textContent = entries.length
+        ? `筛选结果 ${entries.length} 条 · 共 ${allEntries.length} 条`
+        : allEntries.length
+          ? `筛选结果 0 条 · 共 ${allEntries.length} 条`
+          : "";
+    } else {
+      subtitleEl.textContent = entries.length ? `共 ${entries.length} 条记录` : "";
+    }
   }
 
   if (!entries.length) {
@@ -2545,13 +2597,15 @@ const memoModalTitle = document.getElementById("memo-modal-title");
 
 function renderMemos() {
   const listEl = document.getElementById("memos-list");
-  const countEl = document.getElementById("memos-count");
+  const subtitleEl = document.getElementById("memos-page-subtitle");
   const sorted = sortMemos(memos);
   const pinnedCount = sorted.filter((memo) => memo.pinned).length;
 
-  countEl.textContent = sorted.length
-    ? `共 ${sorted.length} 条${pinnedCount ? ` · ${pinnedCount} 条置顶` : ""}`
-    : "";
+  if (subtitleEl && memosPageTab === "memos") {
+    subtitleEl.textContent = sorted.length
+      ? `共 ${sorted.length} 条${pinnedCount ? ` · ${pinnedCount} 条置顶` : ""}`
+      : "";
+  }
 
   if (!sorted.length) {
     listEl.innerHTML = `
@@ -2740,8 +2794,9 @@ function reloadAppData() {
   renderCalendar();
   renderSummary();
   renderAchievements();
-  renderRecords();
-  renderMemos();
+  updateMemosPageToolbar();
+  if (memosPageTab === "records") renderRecords();
+  else renderMemos();
   renderDataPanel();
   syncWidgetData();
 }
@@ -2823,6 +2878,7 @@ function renderHeaderRankStyleOptions() {
 const PIN_SESSION_KEY = "app_unlocked";
 const PIN_MIN_LEN = 4;
 const PIN_MAX_LEN = 8;
+let lockVerifying = false;
 
 function normalizePinInput(value) {
   return String(value || "").replace(/\D/g, "").slice(0, PIN_MAX_LEN);
@@ -2886,7 +2942,16 @@ function showLockScreen() {
   document.body.classList.add("body-locked");
   if (input) {
     input.value = "";
-    setTimeout(() => input.focus(), 120);
+    const focusInput = () => {
+      try {
+        input.focus({ preventScroll: true });
+      } catch {
+        input.focus();
+      }
+    };
+    focusInput();
+    setTimeout(focusInput, 120);
+    setTimeout(focusInput, 360);
   }
 }
 
@@ -2918,20 +2983,35 @@ async function unlockAppWithPin(pin) {
   return true;
 }
 
-async function handleLockSubmit() {
+async function handleLockSubmit(options = {}) {
   const input = document.getElementById("lock-pin-input");
-  if (!input) return;
+  if (!input || lockVerifying) return;
   const normalized = normalizePinInput(input.value);
   if (!isValidPin(normalized)) return;
-  const ok = await unlockAppWithPin(normalized);
-  if (!ok) {
-    showLockError();
-    input.value = "";
-    input.focus();
-    hapticImpact("Light");
-    return;
+
+  lockVerifying = true;
+  try {
+    const ok = await unlockAppWithPin(normalized);
+    if (!ok) {
+      if (options.auto && normalized.length < PIN_MAX_LEN) return;
+      showLockError();
+      input.value = "";
+      input.focus();
+      hapticImpact("Light");
+      return;
+    }
+    hideLockError();
+  } finally {
+    lockVerifying = false;
   }
+}
+
+function handleLockPinInput(e) {
+  e.target.value = normalizePinInput(e.target.value);
   hideLockError();
+  if (e.target.value.length >= PIN_MIN_LEN) {
+    void handleLockSubmit({ auto: true });
+  }
 }
 
 function renderPinSettingsForm() {
@@ -2943,7 +3023,7 @@ function renderPinSettingsForm() {
   if (descEl) {
     descEl.textContent = configured
       ? "已启用数字密码，可修改或清除"
-      : "设置 4–8 位数字密码，启动时将先显示军衔与守住天数，再验证进入";
+      : "设置 4–8 位数字密码，启动时将先显示军衔与鼓励语，再验证进入";
   }
 
   if (!configured) {
@@ -3035,14 +3115,11 @@ function initAppLock() {
     showLockScreen();
   }
 
-  document.getElementById("lock-submit-btn")?.addEventListener("click", handleLockSubmit);
+  document.getElementById("lock-submit-btn")?.addEventListener("click", () => handleLockSubmit());
   document.getElementById("lock-pin-input")?.addEventListener("keydown", (e) => {
     if (e.key === "Enter") handleLockSubmit();
   });
-  document.getElementById("lock-pin-input")?.addEventListener("input", (e) => {
-    e.target.value = normalizePinInput(e.target.value);
-    hideLockError();
-  });
+  document.getElementById("lock-pin-input")?.addEventListener("input", handleLockPinInput);
 }
 
 function downloadJsonInBrowser(json, fileName) {
@@ -3186,6 +3263,7 @@ initSummaryStatsToggle();
 initRecordsFilters();
 initAchievementFilter();
 initRecordsFilterToggle();
+updateMemosPageToolbar();
 initMemoLongPress();
 initAppLock();
 initSwipeNavigation();
@@ -3193,6 +3271,7 @@ document.getElementById("main-view")?.classList.add("main-content--calendar-fit"
 document.getElementById("milestone-dismiss")?.addEventListener("click", closeMilestoneModal);
 document.getElementById("milestone-modal")?.querySelector(".milestone-backdrop")?.addEventListener("click", closeMilestoneModal);
 renderHeader();
+window.addEventListener("resize", syncHeaderRankLayout);
 renderCalendar();
 migrateShownAchievements();
 initNativeBridge();

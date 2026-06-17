@@ -27,6 +27,7 @@
           pattern="[0-9]*"
           maxlength="8"
           autocomplete="off"
+          autofocus
           aria-label="数字密码"
           placeholder="••••"
         />
@@ -38,14 +39,16 @@
 
   <div class="app-shell">
     <header class="header" id="app-header">
-      <button type="button" class="app-settings-btn open-settings-btn" aria-label="设置">
-        <svg class="app-settings-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-          <circle cx="12" cy="12" r="3"/>
-          <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
-        </svg>
-      </button>
-      <div class="header-rank" id="header-rank" aria-live="polite"></div>
-      <div class="header-streak" id="header-streak" aria-live="polite"></div>
+      <div class="header-top">
+        <div class="header-rank" id="header-rank" aria-live="polite"></div>
+        <div class="header-streak" id="header-streak" aria-live="polite"></div>
+        <button type="button" class="app-settings-btn open-settings-btn" aria-label="设置">
+          <svg class="app-settings-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <circle cx="12" cy="12" r="3"/>
+            <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
+          </svg>
+        </button>
+      </div>
       <div class="header-rank-progress" id="header-rank-progress" aria-live="polite"></div>
       <blockquote class="header-quote header-quote--ambient" id="header-quote"></blockquote>
       <p class="header-author" id="header-author"></p>
@@ -81,16 +84,9 @@
       </section>
 
       <section id="achievements-panel" class="panel">
-        <div class="panel-head panel-head-row">
-          <div class="panel-head-main">
-            <h2>成就</h2>
-            <p class="panel-subtitle" id="achievements-subtitle"></p>
-          </div>
-          <button type="button" class="panel-icon-btn" id="achievements-open-records" aria-label="打卡记录">
-            <svg class="panel-icon-btn-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-              <path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/>
-            </svg>
-          </button>
+        <div class="panel-head">
+          <h2>成就</h2>
+          <p class="panel-subtitle" id="achievements-subtitle"></p>
         </div>
         <div class="achievements-page">
           <p class="month-encourage" id="month-encourage" aria-live="polite"></p>
@@ -140,63 +136,58 @@
         </div>
       </section>
 
-      <section id="records-panel" class="panel">
-        <div class="panel-head panel-head-row">
-          <button type="button" class="panel-action-btn panel-action-btn--back" id="records-back-btn" aria-label="返回成就">←</button>
-          <div class="panel-head-main">
-            <h2>打卡记录</h2>
-            <p class="panel-subtitle records-count" id="records-count"></p>
-          </div>
-          <button type="button" id="records-filter-toggle" class="records-filter-toggle" aria-expanded="false" aria-controls="records-filters">
-            <span class="records-filter-toggle-text">筛选</span>
-            <span class="records-filter-toggle-icon" aria-hidden="true">›</span>
-          </button>
-        </div>
-        <div class="records-filters collapsed" id="records-filters">
-          <div class="records-filter-row">
-            <span class="records-filter-label">状态</span>
-            <div class="records-filter-chips" data-filter="status">
-              <button type="button" class="filter-chip active" data-value="">全部</button>
-              <button type="button" class="filter-chip" data-value="success">守住了</button>
-              <button type="button" class="filter-chip" data-value="partial">差点犯</button>
-              <button type="button" class="filter-chip" data-value="fail">没守住</button>
-            </div>
-          </div>
-          <div class="records-filter-row">
-            <span class="records-filter-label">场次</span>
-            <div class="records-filter-chips" data-filter="session">
-              <button type="button" class="filter-chip active" data-value="">全部</button>
-              <button type="button" class="filter-chip" data-value="night">晚间</button>
-              <button type="button" class="filter-chip" data-value="noon">午间</button>
-            </div>
-          </div>
-          <div class="records-filter-row">
-            <span class="records-filter-label">时间</span>
-            <div class="records-filter-chips" data-filter="period">
-              <button type="button" class="filter-chip active" data-value="">全部</button>
-              <button type="button" class="filter-chip" data-value="month">本月</button>
-              <button type="button" class="filter-chip" data-value="30">近30天</button>
-            </div>
-          </div>
-        </div>
-        <div class="records-list" id="records-list"></div>
-      </section>
-
       <section id="memos-panel" class="panel">
-        <div class="memos-header">
-          <div class="panel-head panel-head-row">
-            <div class="panel-head-main">
-              <h2>备忘录</h2>
-              <p class="panel-subtitle memos-count" id="memos-count"></p>
+        <div class="memos-page-header">
+          <div class="memos-page-tabs" role="tablist" aria-label="备忘录与打卡记录">
+            <button type="button" class="memos-page-tab active" data-memos-tab="memos" role="tab" aria-selected="true">备忘录</button>
+            <button type="button" class="memos-page-tab" data-memos-tab="records" role="tab" aria-selected="false">打卡记录</button>
+          </div>
+          <div class="memos-page-toolbar">
+            <p class="panel-subtitle memos-page-subtitle" id="memos-page-subtitle"></p>
+            <button type="button" id="new-memo-btn" class="memo-fab-btn" aria-label="新建备忘录">
+              <svg class="memo-fab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+                <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+              </svg>
+            </button>
+            <button type="button" id="records-filter-toggle" class="records-filter-toggle hidden" aria-expanded="false" aria-controls="records-filters">
+              <span class="records-filter-toggle-text">筛选</span>
+              <span class="records-filter-toggle-icon" aria-hidden="true">›</span>
+            </button>
+          </div>
+        </div>
+        <div class="memos-page-view" id="memos-page-memos" data-memos-view="memos">
+          <div class="memos-list" id="memos-list"></div>
+        </div>
+        <div class="memos-page-view hidden" id="memos-page-records" data-memos-view="records">
+          <div class="records-filters collapsed" id="records-filters">
+            <div class="records-filter-row">
+              <span class="records-filter-label">状态</span>
+              <div class="records-filter-chips" data-filter="status">
+                <button type="button" class="filter-chip active" data-value="">全部</button>
+                <button type="button" class="filter-chip" data-value="success">守住了</button>
+                <button type="button" class="filter-chip" data-value="partial">差点犯</button>
+                <button type="button" class="filter-chip" data-value="fail">没守住</button>
+              </div>
+            </div>
+            <div class="records-filter-row">
+              <span class="records-filter-label">场次</span>
+              <div class="records-filter-chips" data-filter="session">
+                <button type="button" class="filter-chip active" data-value="">全部</button>
+                <button type="button" class="filter-chip" data-value="night">晚间</button>
+                <button type="button" class="filter-chip" data-value="noon">午间</button>
+              </div>
+            </div>
+            <div class="records-filter-row">
+              <span class="records-filter-label">时间</span>
+              <div class="records-filter-chips" data-filter="period">
+                <button type="button" class="filter-chip active" data-value="">全部</button>
+                <button type="button" class="filter-chip" data-value="month">本月</button>
+                <button type="button" class="filter-chip" data-value="30">近30天</button>
+              </div>
             </div>
           </div>
-          <button type="button" id="new-memo-btn" class="memo-fab-btn" aria-label="新建备忘录">
-            <svg class="memo-fab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
-              <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
-            </svg>
-          </button>
+          <div class="records-list" id="records-list"></div>
         </div>
-        <div class="memos-list" id="memos-list"></div>
       </section>
     </main>
 

@@ -640,13 +640,11 @@ html {
   --nav-height: clamp(56px, 14vw, 64px);
   --day-cell-min: clamp(40px, 12.5vw, 56px);
   --day-num-size: clamp(0.92rem, 3.1vw, 1.14rem);
-  --day-today-size: clamp(26px, 7.2vw, 32px);
+  --day-today-size: clamp(20px, 5vw, 24px);
   --calendar-col-gap: clamp(5px, 2vw, 10px);
   --calendar-row-gap: clamp(5px, 1.8vw, 8px);
   --mini-day-height: clamp(26px, 7.5vw, 34px);
   --header-streak-num: clamp(1.85rem, 8vw, 2.6rem);
-  --header-rank-offset: clamp(54px, 17vw, 72px);
-  --header-settings-offset: clamp(38px, 11vw, 44px);
   --header-rank-btn-size: clamp(58px, 16vw, 68px);
   --modal-max-width: min(360px, calc(100vw - var(--page-gutter) * 2 - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px)));
   --touch-target: 44px;
@@ -716,18 +714,6 @@ body {
   padding: 20px 14px 14px;
 }
 
-.app-shell:has(#calendar-panel.active) .header-streak,
-.app-shell:has(#calendar-panel.active) .header-rank-progress {
-  padding-left: var(--header-rank-offset);
-  padding-right: var(--header-settings-offset);
-  box-sizing: border-box;
-}
-
-.app-shell:has(#calendar-panel.active) .header-streak {
-  margin-bottom: 10px;
-  padding-bottom: 20px;
-}
-
 .app-shell:has(#calendar-panel.active) .header-streak-sub {
   margin-top: 6px;
   padding: 0 2px;
@@ -760,10 +746,6 @@ body {
 }
 
 .app-settings-btn {
-  position: absolute;
-  top: 12px;
-  right: 12px;
-  z-index: 2;
   width: 36px;
   height: 36px;
   display: flex;
@@ -828,21 +810,38 @@ body {
   display: none;
 }
 
+.header-top {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: start;
+  column-gap: clamp(8px, 2.5vw, 12px);
+  margin-bottom: 18px;
+}
+
 .header-streak {
   position: relative;
   z-index: 1;
-  margin-bottom: 18px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-width: 0;
+  margin-bottom: 0;
   padding-bottom: 16px;
   border-bottom: 1px solid var(--border);
+  box-sizing: border-box;
 }
 
 .header-rank {
-  position: absolute;
-  top: 12px;
-  left: 12px;
+  position: static;
   z-index: 2;
   margin: 0;
   pointer-events: none;
+  flex-shrink: 0;
+}
+
+.header-top .app-settings-btn {
+  flex-shrink: 0;
+  margin-top: 0;
 }
 
 .header-rank-btn {
@@ -854,46 +853,29 @@ body {
   gap: 4px;
   width: var(--header-rank-btn-size);
   padding: 7px 6px 6px;
-  border: 1.5px solid color-mix(in srgb, var(--rank-color, var(--accent)) 55%, var(--border));
+  border: 1px solid var(--border);
   border-radius: 14px;
-  background: linear-gradient(
-    165deg,
-    color-mix(in srgb, var(--rank-color, var(--accent)) 24%, var(--surface)) 0%,
-    color-mix(in srgb, var(--rank-color, var(--accent)) 10%, var(--surface)) 48%,
-    color-mix(in srgb, var(--rank-color, var(--accent)) 6%, var(--surface-hover)) 100%
-  );
-  box-shadow:
-    0 4px 14px color-mix(in srgb, var(--rank-color, var(--accent)) 24%, transparent),
-    0 1px 0 color-mix(in srgb, #fff 55%, transparent) inset;
+  background: var(--surface);
+  box-shadow: none;
   cursor: pointer;
   pointer-events: auto;
   overflow: hidden;
-  transition: border-color 0.15s, transform 0.15s, box-shadow 0.15s;
+  transition: border-color 0.15s;
   -webkit-tap-highlight-color: transparent;
 }
 
 .header-rank-btn::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background: radial-gradient(
-    120% 80% at 50% -20%,
-    color-mix(in srgb, var(--rank-color, var(--accent)) 28%, transparent),
-    transparent 68%
-  );
-  pointer-events: none;
+  display: none;
 }
 
 .header-rank-btn:hover {
-  border-color: color-mix(in srgb, var(--rank-color, var(--accent)) 75%, var(--border));
-  box-shadow:
-    0 6px 18px color-mix(in srgb, var(--rank-color, var(--accent)) 32%, transparent),
-    0 1px 0 color-mix(in srgb, #fff 60%, transparent) inset;
-  transform: translateY(-1px);
+  border-color: color-mix(in srgb, var(--rank-color, var(--accent)) 40%, var(--border));
+  box-shadow: none;
+  transform: none;
 }
 
 .header-rank-btn:active {
-  transform: scale(0.97) translateY(0);
+  transform: none;
 }
 
 .header-rank-btn .rank-badge-svg {
@@ -901,31 +883,7 @@ body {
   z-index: 1;
   width: 38px;
   height: 38px;
-  filter: drop-shadow(0 2px 6px color-mix(in srgb, var(--rank-color, var(--accent)) 35%, transparent));
-}
-
-html:is(
-    [data-theme="dark"],
-    [data-theme="ink"],
-    [data-theme="graphite"],
-    [data-theme="steel"]
-  )
-  .header-rank-btn.rank-style--classic {
-  box-shadow:
-    0 4px 16px rgba(0, 0, 0, 0.28),
-    0 1px 0 color-mix(in srgb, #fff 8%, transparent) inset;
-}
-
-html:is(
-    [data-theme="dark"],
-    [data-theme="ink"],
-    [data-theme="graphite"],
-    [data-theme="steel"]
-  )
-  .header-rank-btn.rank-style--classic:hover {
-  box-shadow:
-    0 6px 20px rgba(0, 0, 0, 0.34),
-    0 1px 0 color-mix(in srgb, #fff 10%, transparent) inset;
+  filter: none;
 }
 
 .rank-badge-insignia {
@@ -942,20 +900,14 @@ html:is(
   width: 100%;
   font-family: var(--font-serif);
   font-size: 0.68rem;
-  font-weight: 800;
+  font-weight: 700;
   line-height: 1.2;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.06em;
   text-align: center;
-  background: linear-gradient(
-    180deg,
-    color-mix(in srgb, var(--rank-color, var(--accent)) 25%, #fff) 0%,
-    var(--rank-color, var(--accent)) 42%,
-    color-mix(in srgb, var(--rank-color, var(--accent)) 75%, #000) 100%
-  );
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
-  filter: drop-shadow(0 1px 2px color-mix(in srgb, var(--rank-color, var(--accent)) 35%, transparent));
+  color: var(--text);
+  background: none;
+  -webkit-text-fill-color: unset;
+  filter: none;
 }
 
 .header-rank-range {
@@ -967,53 +919,32 @@ html:is(
   line-height: 1.15;
   letter-spacing: 0.02em;
   text-align: center;
-  color: color-mix(in srgb, var(--rank-color, var(--accent)) 55%, var(--text-muted));
+  color: var(--text-muted);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-/* ===== 打卡页军衔 · 20 款样式 ===== */
+/* ===== 打卡页军衔 · 20 款样式（纯色底，无渐变/高亮） ===== */
 .header-rank-btn.rank-style--minimal {
   border-width: 1px;
   border-radius: 10px;
   background: var(--surface);
   box-shadow: none;
 }
-.header-rank-btn.rank-style--minimal::before {
-  display: none;
-}
-.header-rank-btn.rank-style--minimal:hover {
-  box-shadow: none;
-  transform: none;
-  border-color: var(--rank-color, var(--accent));
-}
-.header-rank-btn.rank-style--minimal .rank-badge-svg {
-  filter: none;
-}
 
 .header-rank-btn.rank-style--glass {
-  background: color-mix(in srgb, var(--rank-color) 10%, var(--surface) 90%);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  border-color: color-mix(in srgb, var(--rank-color) 35%, transparent);
-  box-shadow: 0 4px 18px color-mix(in srgb, var(--rank-color) 18%, transparent);
-}
-.header-rank-btn.rank-style--glass::before {
-  background: linear-gradient(135deg, color-mix(in srgb, #fff 40%, transparent), transparent 60%);
-  opacity: 0.5;
+  background: var(--surface);
+  border-color: var(--border);
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
 }
 
 .header-rank-btn.rank-style--neon {
-  background: color-mix(in srgb, var(--rank-color) 6%, var(--surface));
+  background: var(--surface);
   border-color: var(--rank-color, var(--accent));
-  box-shadow:
-    0 0 10px color-mix(in srgb, var(--rank-color) 55%, transparent),
-    0 0 22px color-mix(in srgb, var(--rank-color) 25%, transparent),
-    inset 0 0 10px color-mix(in srgb, var(--rank-color) 12%, transparent);
-}
-.header-rank-btn.rank-style--neon::before {
-  background: radial-gradient(circle at 50% 0%, color-mix(in srgb, var(--rank-color) 35%, transparent), transparent 70%);
+  box-shadow: none;
 }
 
 .header-rank-btn.rank-style--outline {
@@ -1022,26 +953,19 @@ html:is(
   border-color: var(--rank-color, var(--accent));
   box-shadow: none;
 }
-.header-rank-btn.rank-style--outline::before {
-  display: none;
-}
+
 .header-rank-btn.rank-style--outline:hover {
-  background: color-mix(in srgb, var(--rank-color) 8%, var(--surface));
+  background: transparent;
   box-shadow: none;
+  transform: none;
 }
 
 .header-rank-btn.rank-style--pill {
   border-radius: 999px;
   padding: 8px 8px 7px;
 }
-.header-rank-btn.rank-style--pill::before {
-  border-radius: 999px;
-}
 
 .header-rank-btn.rank-style--square {
-  border-radius: 4px;
-}
-.header-rank-btn.rank-style--square::before {
   border-radius: 4px;
 }
 
@@ -1051,16 +975,14 @@ html:is(
   padding: 8px 6px 6px;
   border-radius: 50%;
   border-width: 2px;
-  background: radial-gradient(
-    circle at 35% 28%,
-    color-mix(in srgb, var(--rank-color) 30%, #fff) 0%,
-    color-mix(in srgb, var(--rank-color) 12%, var(--surface)) 55%,
-    color-mix(in srgb, var(--rank-color) 22%, var(--surface-hover)) 100%
-  );
+  background: var(--surface);
+  box-shadow: none;
 }
+
 .header-rank-btn.rank-style--medal .header-rank-name {
   font-size: 0.58rem;
 }
+
 .header-rank-btn.rank-style--medal .header-rank-range {
   display: none;
 }
@@ -1069,64 +991,46 @@ html:is(
   border-radius: 2px 2px 0 0;
   border-bottom: none;
   padding-bottom: 10px;
-  background: linear-gradient(
-    180deg,
-    color-mix(in srgb, var(--rank-color) 28%, var(--surface)) 0%,
-    color-mix(in srgb, var(--rank-color) 14%, var(--surface)) 100%
-  );
+  background: var(--surface);
+  box-shadow: none;
   clip-path: polygon(0 0, 100% 0, 100% 88%, 50% 100%, 0 88%);
-}
-.header-rank-btn.rank-style--ribbon::before {
-  opacity: 0.35;
 }
 
 .header-rank-btn.rank-style--dark {
-  background: linear-gradient(165deg, #1a1f28 0%, #0f1218 100%);
-  border-color: color-mix(in srgb, var(--rank-color) 45%, #2a3340);
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+  background: #1a1f28;
+  border-color: #2a3340;
+  box-shadow: none;
 }
+
+.header-rank-btn.rank-style--dark .header-rank-name {
+  color: #e8edf5;
+}
+
 .header-rank-btn.rank-style--dark .header-rank-range {
-  color: color-mix(in srgb, var(--rank-color) 70%, #9aa3b0);
+  color: #9aa3b0;
 }
 
 .header-rank-btn.rank-style--gold {
-  border-color: color-mix(in srgb, #d4af37 70%, var(--rank-color));
-  background: linear-gradient(
-    155deg,
-    color-mix(in srgb, #f5e6a8 35%, var(--surface)) 0%,
-    color-mix(in srgb, #d4af37 18%, var(--surface)) 45%,
-    color-mix(in srgb, #b8922a 12%, var(--surface-hover)) 100%
-  );
-  box-shadow:
-    0 4px 14px color-mix(in srgb, #d4af37 28%, transparent),
-    inset 0 1px 0 color-mix(in srgb, #fff 50%, transparent);
+  background: var(--surface);
+  border-color: color-mix(in srgb, #d4af37 55%, var(--border));
+  box-shadow: none;
 }
 
 .header-rank-btn.rank-style--frost {
-  background: linear-gradient(
-    165deg,
-    color-mix(in srgb, #e8f4ff 55%, var(--surface)) 0%,
-    color-mix(in srgb, var(--rank-color) 8%, var(--surface)) 100%
-  );
-  border-color: color-mix(in srgb, #b8d4f0 65%, var(--rank-color));
-  box-shadow: 0 2px 12px color-mix(in srgb, #7eb0e8 20%, transparent);
-}
-.header-rank-btn.rank-style--frost::before {
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.65), transparent 55%);
+  background: var(--surface);
+  border-color: var(--border);
+  box-shadow: none;
 }
 
 .header-rank-btn.rank-style--elevated {
-  border: none;
-  box-shadow:
-    0 10px 24px color-mix(in srgb, var(--rank-color) 22%, rgba(0, 0, 0, 0.18)),
-    0 3px 8px rgba(0, 0, 0, 0.08),
-    inset 0 1px 0 color-mix(in srgb, #fff 45%, transparent);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  box-shadow: none;
 }
+
 .header-rank-btn.rank-style--elevated:hover {
-  transform: translateY(-3px);
-  box-shadow:
-    0 14px 28px color-mix(in srgb, var(--rank-color) 28%, rgba(0, 0, 0, 0.22)),
-    0 4px 10px rgba(0, 0, 0, 0.1);
+  transform: none;
+  box-shadow: none;
 }
 
 .header-rank-btn.rank-style--compact {
@@ -1134,68 +1038,59 @@ html:is(
   padding: 5px 4px 4px;
   border-radius: 10px;
 }
+
 .header-rank-btn.rank-style--compact .rank-badge-svg {
   width: 30px;
   height: 30px;
 }
+
 .header-rank-btn.rank-style--compact .header-rank-name {
   font-size: 0.58rem;
   letter-spacing: 0.04em;
 }
+
 .header-rank-btn.rank-style--compact .header-rank-range {
   font-size: 0.44rem;
 }
 
 .header-rank-btn.rank-style--layered {
-  border: none;
-  background: color-mix(in srgb, var(--rank-color) 10%, var(--surface));
-  box-shadow:
-    4px 4px 0 color-mix(in srgb, var(--rank-color) 35%, var(--border)),
-    0 2px 8px color-mix(in srgb, var(--rank-color) 15%, transparent);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  box-shadow: none;
 }
-.header-rank-btn.rank-style--layered::before {
-  display: none;
-}
+
 .header-rank-btn.rank-style--layered:hover {
-  transform: translate(-1px, -1px);
-  box-shadow:
-    5px 5px 0 color-mix(in srgb, var(--rank-color) 40%, var(--border)),
-    0 4px 12px color-mix(in srgb, var(--rank-color) 20%, transparent);
+  transform: none;
+  box-shadow: none;
 }
 
 .header-rank-btn.rank-style--spectrum {
-  border: none;
-  background: linear-gradient(
-    135deg,
-    color-mix(in srgb, var(--rank-color) 35%, #7c3aed) 0%,
-    color-mix(in srgb, var(--rank-color) 45%, #2563eb) 50%,
-    color-mix(in srgb, var(--rank-color) 40%, #0891b2) 100%
-  );
-  box-shadow: 0 4px 16px color-mix(in srgb, var(--rank-color) 30%, transparent);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  box-shadow: none;
 }
+
 .header-rank-btn.rank-style--spectrum .header-rank-name,
 .header-rank-btn.rank-style--spectrum .header-rank-range {
-  color: #fff;
-  -webkit-text-fill-color: #fff;
+  color: var(--text);
+  -webkit-text-fill-color: unset;
   background: none;
-  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.25));
+  filter: none;
 }
 
 .header-rank-btn.rank-style--solid {
   border-color: transparent;
   background: var(--rank-color, var(--accent));
-  box-shadow: 0 4px 12px color-mix(in srgb, var(--rank-color) 40%, transparent);
+  box-shadow: none;
 }
-.header-rank-btn.rank-style--solid::before {
-  display: none;
-}
+
 .header-rank-btn.rank-style--solid .header-rank-name {
-  background: linear-gradient(180deg, #fff 0%, color-mix(in srgb, #fff 85%, var(--rank-color)) 100%);
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
+  color: #fff;
+  background: none;
+  -webkit-text-fill-color: unset;
   filter: none;
 }
+
 .header-rank-btn.rank-style--solid .header-rank-range {
   color: color-mix(in srgb, #fff 75%, transparent);
 }
@@ -1207,68 +1102,40 @@ html:is(
   border: none;
   box-shadow: none;
 }
-.header-rank-btn.rank-style--insignia::before {
-  display: none;
-}
+
 .header-rank-btn.rank-style--insignia .rank-badge-svg {
   width: 44px;
   height: 44px;
-  filter: drop-shadow(0 3px 8px color-mix(in srgb, var(--rank-color) 45%, transparent));
+  filter: none;
 }
+
 .header-rank-btn.rank-style--insignia .header-rank-name {
   font-size: 0.62rem;
 }
+
 .header-rank-btn.rank-style--insignia .header-rank-range {
   display: none;
 }
+
 .header-rank-btn.rank-style--insignia:hover {
-  transform: scale(1.03);
+  transform: none;
   box-shadow: none;
 }
 
 .header-rank-btn.rank-style--framed {
-  border: none;
   background: var(--surface);
+  border: none;
   box-shadow:
     inset 0 0 0 1.5px var(--rank-color, var(--accent)),
     inset 0 0 0 4px var(--surface),
-    inset 0 0 0 5.5px color-mix(in srgb, var(--rank-color) 55%, var(--border));
-}
-.header-rank-btn.rank-style--framed::before {
-  opacity: 0.25;
+    inset 0 0 0 5.5px var(--border);
 }
 
 .header-rank-btn.rank-style--aurora {
-  border: none;
-  background: linear-gradient(
-    135deg,
-    color-mix(in srgb, var(--rank-color) 22%, var(--surface)) 0%,
-    color-mix(in srgb, #7c3aed 18%, var(--surface)) 35%,
-    color-mix(in srgb, #0891b2 16%, var(--surface)) 70%,
-    color-mix(in srgb, var(--rank-color) 20%, var(--surface)) 100%
-  );
-  background-size: 200% 200%;
-  animation: rank-aurora-shift 6s ease infinite;
-  box-shadow: 0 4px 18px color-mix(in srgb, var(--rank-color) 25%, transparent);
-}
-.header-rank-btn.rank-style--aurora::before {
-  background: radial-gradient(circle at 30% 20%, rgba(255, 255, 255, 0.35), transparent 55%);
-}
-
-@keyframes rank-aurora-shift {
-  0%,
-  100% {
-    background-position: 0% 50%;
-  }
-  50% {
-    background-position: 100% 50%;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .header-rank-btn.rank-style--aurora {
-    animation: none;
-  }
+  background: var(--surface);
+  border: 1px solid var(--border);
+  box-shadow: none;
+  animation: none;
 }
 
 .rank-guide-list {
@@ -1629,10 +1496,10 @@ html:is(
 
 .nav-item.active {
   color: var(--accent);
-  background: var(--surface);
-  border-color: var(--border);
-  box-shadow: var(--shadow-sm);
-  transform: translateY(-1px);
+  background: var(--accent-light);
+  border-color: color-mix(in srgb, var(--accent) 35%, var(--border));
+  box-shadow: none;
+  transform: none;
 }
 
 html:is(
@@ -1642,8 +1509,9 @@ html:is(
     [data-theme="steel"]
   )
   .nav-item.active {
-  background: var(--surface-hover);
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.25);
+  background: color-mix(in srgb, var(--accent) 14%, var(--surface-hover));
+  border-color: color-mix(in srgb, var(--accent) 40%, var(--border));
+  box-shadow: none;
 }
 
 .nav-icon {
@@ -1754,17 +1622,12 @@ html:is(
   stroke-linejoin: round;
 }
 
-#achievements-panel .panel-head-row {
-  align-items: center;
+#achievements-panel .panel-head {
+  margin-bottom: 14px;
 }
 
-#records-panel {
-  padding-top: 10px;
-}
-
-#records-panel .panel-head {
-  margin-top: 6px;
-  margin-bottom: 18px;
+#memos-panel .records-filters {
+  margin-bottom: 12px;
 }
 
 .panel-head-row:has(.panel-action-btn--back) .panel-head-main {
@@ -1777,7 +1640,47 @@ html:is(
 
 .panel.active {
   display: block;
+}
+
+.panel.active:not(.panel-slide-in-left):not(.panel-slide-in-right) {
   animation: fadeIn 0.28s ease;
+}
+
+.panel.active.panel-slide-in-left {
+  animation: panelSlideInLeft 0.32s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.panel.active.panel-slide-in-right {
+  animation: panelSlideInRight 0.32s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes panelSlideInLeft {
+  from {
+    opacity: 0.35;
+    transform: translateX(-36px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes panelSlideInRight {
+  from {
+    opacity: 0.35;
+    transform: translateX(36px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .panel.active.panel-slide-in-left,
+  .panel.active.panel-slide-in-right {
+    animation: fadeIn 0.2s ease;
+  }
 }
 
 @keyframes fadeIn {
@@ -1870,12 +1773,56 @@ html:is(
 }
 
 /* Memos Panel */
-.memos-header {
+.memos-page-header {
+  margin-bottom: 16px;
+}
+
+.memos-page-tabs {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.memos-page-tab {
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text-muted);
+  font-family: var(--font-serif);
+  font-size: 0.88rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s, color 0.15s;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.memos-page-tab.active {
+  border-color: var(--accent);
+  background: var(--surface-hover);
+  color: var(--text);
+}
+
+.memos-page-toolbar {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
   gap: 12px;
-  margin-bottom: 16px;
+  min-height: 42px;
+}
+
+.memos-page-subtitle {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.memos-page-view.hidden {
+  display: none;
 }
 
 .memo-fab-btn {
@@ -2834,167 +2781,11 @@ html:is(
   margin-top: 12px;
 }
 
-.calendar-achievements-card {
-  position: relative;
-  overflow: hidden;
-  padding: 14px 12px 12px;
-  border-radius: var(--radius);
-  border: none;
-  background:
-    linear-gradient(145deg, color-mix(in srgb, var(--success) 12%, var(--surface)) 0%, var(--surface-hover) 48%, var(--surface) 100%);
-  box-shadow: none;
-}
-
-.calendar-achievements-glow {
-  position: absolute;
-  top: -30px;
-  right: -20px;
-  width: 120px;
-  height: 120px;
-  border-radius: 50%;
-  background: radial-gradient(circle, color-mix(in srgb, var(--accent) 35%, transparent) 0%, transparent 70%);
-  pointer-events: none;
-  opacity: 0.7;
-}
-
-.calendar-achievements-head {
-  position: relative;
-  z-index: 1;
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  margin-bottom: 10px;
-  gap: 10px;
-}
-
-.calendar-achievements-head-main {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  min-width: 0;
-  flex: 1;
-}
-
-.calendar-achievements-medal {
-  flex: 0 0 28px;
-  width: 28px;
-  height: 28px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  line-height: 0;
-  filter: drop-shadow(0 2px 4px rgba(201, 162, 39, 0.3));
-}
-
-.calendar-achievements-medal svg {
-  width: 28px;
-  height: 28px;
-  display: block;
-}
-
-.calendar-achievements-head-text {
-  min-width: 0;
-}
-
-.calendar-achievements-cheer {
-  margin: 4px 0 0;
-  font-size: 0.74rem;
-  line-height: 1.5;
-  color: color-mix(in srgb, var(--success) 65%, var(--text-muted));
-  letter-spacing: 0.02em;
-}
-
-.calendar-achievements-progress-wrap {
-  position: relative;
-  z-index: 1;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 10px;
-}
-
-.calendar-achievements-progress-track {
-  flex: 1;
-  height: 8px;
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--border) 80%, transparent);
-  overflow: hidden;
-  border: 1px solid color-mix(in srgb, var(--success) 18%, var(--border));
-}
-
-.calendar-achievements-progress-fill {
-  display: block;
-  height: 100%;
-  border-radius: 999px;
-  background: linear-gradient(90deg, var(--success), color-mix(in srgb, var(--accent) 45%, var(--success)));
-  box-shadow: 0 0 10px color-mix(in srgb, var(--success) 45%, transparent);
-  transition: width 0.4s ease;
-}
-
-.calendar-achievements-progress-label {
-  flex-shrink: 0;
-  font-size: 0.68rem;
-  font-weight: 700;
-  color: var(--success);
-  letter-spacing: 0.04em;
-}
-
-.calendar-achievements-actions {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 4px;
-  flex-shrink: 0;
-}
-
-.calendar-achievements-link {
-  padding: 3px 8px;
-  border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--border));
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--accent-light) 70%, var(--surface));
-  color: var(--accent-dark);
-  font-family: var(--font-serif);
-  font-size: 0.68rem;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  cursor: pointer;
-  -webkit-tap-highlight-color: transparent;
-  transition: border-color 0.15s, background 0.15s;
-}
-
-.calendar-achievements-link:hover {
-  border-color: var(--accent);
-  background: var(--accent-light);
-}
-
-.calendar-achievements-title {
-  font-family: var(--font-serif);
-  font-size: 0.95rem;
-  font-weight: 700;
-  letter-spacing: 0.1em;
-  color: var(--text);
-}
-
-.calendar-achievements-count {
-  font-size: 0.72rem;
-  font-weight: 700;
-  color: var(--accent);
-  letter-spacing: 0.04em;
-}
-
-.calendar-achievements-badges {
-  position: relative;
-  z-index: 1;
+.calendar-report-card .calendar-achievements-badges {
+  margin-top: 10px;
   display: flex;
   flex-wrap: wrap;
   gap: 7px;
-}
-
-.calendar-achievements-empty {
-  font-size: 0.72rem;
-  color: var(--text-muted);
-  font-style: italic;
-  padding: 2px 0;
 }
 
 .calendar-achievement-badge {
@@ -3016,49 +2807,33 @@ html:is(
 }
 
 .calendar-achievement-badge.earned {
-  color: var(--success);
-  border-color: rgba(34, 139, 87, 0.45);
-  background: linear-gradient(135deg, rgba(34, 139, 87, 0.18), rgba(34, 139, 87, 0.08));
-  font-weight: 700;
-  box-shadow: 0 2px 8px rgba(34, 139, 87, 0.12);
+  color: var(--text);
+  border-color: var(--border);
+  background: var(--surface);
+  font-weight: 600;
+  box-shadow: none;
 }
 
 .calendar-achievement-badge.earned .badge-icon {
-  color: #c9a227;
-  text-shadow: 0 0 6px rgba(201, 162, 39, 0.45);
+  color: var(--accent);
+  text-shadow: none;
 }
 
 .calendar-achievement-badge.locked {
   opacity: 0.88;
   border-style: dashed;
-  background: color-mix(in srgb, var(--surface-hover) 90%, transparent);
+  background: var(--surface-hover);
 }
 
 .calendar-achievement-badge.locked .badge-icon {
   opacity: 0.55;
 }
 
-html:is(
-    [data-theme="dark"],
-    [data-theme="ink"],
-    [data-theme="graphite"],
-    [data-theme="steel"]
-  )
-  .calendar-achievements-card {
-  background: linear-gradient(145deg, rgba(74, 222, 128, 0.1) 0%, var(--surface-hover) 50%, var(--surface) 100%);
-  box-shadow: none;
-}
-
-html:is(
-    [data-theme="dark"],
-    [data-theme="ink"],
-    [data-theme="graphite"],
-    [data-theme="steel"]
-  )
-  .calendar-achievement-badge.earned {
-  color: #86efac;
-  border-color: rgba(74, 222, 128, 0.35);
-  background: linear-gradient(135deg, rgba(74, 222, 128, 0.15), rgba(74, 222, 128, 0.06));
+.calendar-achievements-empty {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  font-style: italic;
+  padding: 2px 0;
 }
 
 .achievement-list-summary {
@@ -3265,11 +3040,11 @@ html:is(
 }
 
 .main-content--calendar-fit .stat-item .stat-num {
-  font-size: 1.1rem;
+  font-size: clamp(1.5rem, 4.8vw, 1.85rem);
 }
 
 .main-content--calendar-fit .stat-item .stat-label {
-  font-size: 0.68rem;
+  font-size: 0.72rem;
 }
 
 .main-content--calendar-fit .btn-icon {
@@ -3521,17 +3296,18 @@ html:is(
 
 .stat-item .stat-num {
   font-family: var(--font-serif);
-  font-size: 1.4rem;
-  font-weight: 500;
-  line-height: 1.2;
+  font-size: clamp(1.65rem, 5.2vw, 2.05rem);
+  font-weight: 700;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
 }
 
 .stat-item .stat-label {
   font-family: var(--font-serif);
-  font-size: 0.78rem;
-  letter-spacing: 0.1em;
+  font-size: 0.8rem;
+  letter-spacing: 0.08em;
   color: var(--text-muted);
-  margin-top: 4px;
+  margin-top: 6px;
 }
 
 .stat-item.success .stat-num { color: var(--success); }
@@ -5451,8 +5227,8 @@ html:is(
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 1.35em;
-  height: 1.35em;
+  min-width: 1.15em;
+  height: 1.15em;
   padding: 0 2px;
   border-radius: 50%;
   background: var(--today);
@@ -5533,8 +5309,6 @@ html:is(
   .app-settings-btn {
     width: clamp(32px, 9vw, 36px);
     height: clamp(32px, 9vw, 36px);
-    top: 10px;
-    right: 10px;
   }
 
   .app-settings-icon {
@@ -5547,17 +5321,21 @@ html:is(
     padding: clamp(18px, 5vw, 24px) clamp(12px, 4vw, 16px) clamp(14px, 4vw, 20px);
   }
 
-  .header-rank {
-    top: 10px;
-    left: 10px;
-  }
-
   .header-rank-name {
     font-size: clamp(0.48rem, 2.8vw, 0.56rem);
   }
 
   .header-rank-range {
     font-size: clamp(0.4rem, 2.4vw, 0.48rem);
+  }
+
+  .header-top {
+    column-gap: 8px;
+    margin-bottom: 14px;
+  }
+
+  .header-streak {
+    padding-bottom: 14px;
   }
 
   .main-content--calendar-fit .legend {
@@ -5584,7 +5362,7 @@ html:is(
   }
 
   .header-streak {
-    margin-bottom: 14px;
+    margin-bottom: 0;
     padding-bottom: 14px;
   }
 
@@ -5664,7 +5442,7 @@ html:is(
   }
 
   .stat-item .stat-num {
-    font-size: clamp(1.1rem, 4vw, 1.25rem);
+    font-size: clamp(1.45rem, 4.6vw, 1.75rem);
   }
 
   .year-grid {
@@ -5767,8 +5545,6 @@ html:is(
     --calendar-col-gap: 4px;
     --calendar-row-gap: 4px;
     --mini-day-height: 24px;
-    --header-rank-offset: 50px;
-    --header-settings-offset: 36px;
     --header-rank-btn-size: 50px;
   }
 
@@ -5785,15 +5561,6 @@ html:is(
 
   .year-grid {
     gap: 6px;
-  }
-
-  .calendar-achievements-head {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  .calendar-achievements-all {
-    align-self: flex-end;
   }
 }
 
@@ -5823,7 +5590,7 @@ html:is(
   }
 
   .main-content--calendar-fit .stat-item .stat-num {
-    font-size: 1rem;
+    font-size: clamp(1.35rem, 4.2vw, 1.6rem);
   }
 }
 
@@ -5839,16 +5606,11 @@ html:is(
   }
 
   .app-shell:has(#calendar-panel.active) .header-streak {
-    margin-bottom: 8px;
-    padding-bottom: 20px;
+    padding-bottom: 16px;
   }
 
   .calendar-achievements {
     margin-top: 8px;
-  }
-
-  .calendar-achievements-card {
-    padding: 10px 10px 8px;
   }
 }
 

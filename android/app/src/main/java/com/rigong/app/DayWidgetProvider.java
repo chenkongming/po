@@ -6,6 +6,7 @@ import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.view.View;
 import android.widget.RemoteViews;
 import android.appwidget.AppWidgetProvider;
 
@@ -30,14 +31,13 @@ public class DayWidgetProvider extends AppWidgetProvider {
     private static void updateWidget(Context context, AppWidgetManager manager, int widgetId) {
         SharedPreferences prefs = context.getSharedPreferences(WidgetSyncPlugin.PREFS, Context.MODE_PRIVATE);
         String rankName = prefs.getString("rankName", "列兵");
-        String rankRange = prefs.getString("rankRange", "0–3 天");
         int streakDays = prefs.getInt("streakDays", 0);
         String style = prefs.getString("widgetStyle", "classic");
 
         RemoteViews views = new RemoteViews(context.getPackageName(), R.layout.widget_day);
         views.setTextViewText(R.id.widget_rank_name, rankName);
         views.setTextViewText(R.id.widget_streak_days, String.valueOf(streakDays));
-        views.setTextViewText(R.id.widget_rank_range, rankRange);
+        views.setViewVisibility(R.id.widget_rank_range, View.GONE);
         applyWidgetStyle(context, views, style);
 
         Intent intent = new Intent(context, MainActivity.class);
@@ -96,6 +96,6 @@ public class DayWidgetProvider extends AppWidgetProvider {
         views.setInt(R.id.widget_root, "setBackgroundResource", bgRes);
         views.setTextColor(R.id.widget_rank_name, context.getColor(textPrimary));
         views.setTextColor(R.id.widget_streak_days, context.getColor(accent));
-        views.setTextColor(R.id.widget_rank_range, context.getColor(textSecondary));
+        views.setViewVisibility(R.id.widget_rank_range, View.GONE);
     }
 }

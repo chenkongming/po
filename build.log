@@ -1,4 +1,4 @@
-Build started at 2026-06-03 ÖÜÈý 18:23:29.00
+Build started at 2026-06-04 ÖÜËÄ 18:08:14.73
 npm WARN lifecycle The node binary used for scripts is D:\nodejs\node.exe but npm is using D:\nvm\v16.20.2\node.exe itself. Use the `--scripts-prepend-node-path` option to include the path for the node binary npm was executed with.
 
 > rigong@1.0.0 export:quotes F:\po
@@ -113,17 +113,17 @@ npm WARN lifecycle The node binary used for scripts is D:\nodejs\node.exe but np
 ÒÑ¸´ÖÆ         1 ¸öÎÄ¼þ¡£
 ÒÑ¸´ÖÆ         1 ¸öÎÄ¼þ¡£
 ÒÑ¸´ÖÆ         1 ¸öÎÄ¼þ¡£
-âˆš Copying web assets from www to android\app\src\main\assets\public in 9.99ms
+âˆš Copying web assets from www to android\app\src\main\assets\public in 10.24ms
 âˆš Creating capacitor.config.json in android\app\src\main\assets in 1.34ms
-âˆš copy android in 22.73ms
-âˆš Updating Android plugins in 796.20Î¼s
+âˆš copy android in 25.07ms
+âˆš Updating Android plugins in 810.20Î¼s
 [info] Found 4 Capacitor plugins for android:
        @capacitor/app@7.1.2
        @capacitor/filesystem@7.1.8
        @capacitor/haptics@7.0.5
        @capacitor/share@7.0.4
-âˆš update android in 48.10ms
-[info] Sync finished in 0.089s
+âˆš update android in 43.34ms
+[info] Sync finished in 0.086s
 Using JAVA_HOME=D:\androidStudio\jbr
 To honour the JVM settings for this build a single-use Daemon process will be forked. For more on this, please refer to https://docs.gradle.org/8.11.1/userguide/gradle_daemon.html#sec:disabling_the_daemon in the Gradle documentation.
 Daemon will be stopped at the end of the build 
@@ -156,16 +156,16 @@ WARNING: Using flatDir should be avoided because it doesn't support any meta-dat
 > Task :capacitor-share:preDebugBuild UP-TO-DATE
 > Task :capacitor-share:writeDebugAarMetadata UP-TO-DATE
 > Task :app:generateDebugResValues UP-TO-DATE
-> Task :capacitor-cordova-android-plugins:writeDebugAarMetadata
 > Task :capacitor-android:generateDebugResValues UP-TO-DATE
+> Task :capacitor-cordova-android-plugins:writeDebugAarMetadata
 > Task :capacitor-android:generateDebugResources UP-TO-DATE
+> Task :app:checkDebugAarMetadata UP-TO-DATE
 > Task :capacitor-android:packageDebugResources UP-TO-DATE
 > Task :capacitor-app:generateDebugResValues UP-TO-DATE
 > Task :capacitor-app:generateDebugResources UP-TO-DATE
 > Task :capacitor-app:packageDebugResources UP-TO-DATE
 > Task :capacitor-cordova-android-plugins:generateDebugResValues
 > Task :capacitor-cordova-android-plugins:generateDebugResources
-> Task :app:checkDebugAarMetadata
 > Task :capacitor-cordova-android-plugins:packageDebugResources
 > Task :capacitor-filesystem:generateDebugResValues UP-TO-DATE
 > Task :capacitor-filesystem:generateDebugResources UP-TO-DATE
@@ -179,7 +179,7 @@ WARNING: Using flatDir should be avoided because it doesn't support any meta-dat
 > Task :app:mapDebugSourceSetPaths
 > Task :app:generateDebugResources
 > Task :app:packageDebugResources
-> Task :app:parseDebugLocalResources
+> Task :app:mergeDebugResources
 > Task :app:createDebugCompatibleScreenManifests UP-TO-DATE
 > Task :app:extractDeepLinksDebug UP-TO-DATE
 > Task :capacitor-android:extractDeepLinksDebug UP-TO-DATE
@@ -187,7 +187,7 @@ WARNING: Using flatDir should be avoided because it doesn't support any meta-dat
 > Task :capacitor-app:extractDeepLinksDebug UP-TO-DATE
 > Task :capacitor-app:processDebugManifest UP-TO-DATE
 > Task :capacitor-cordova-android-plugins:extractDeepLinksDebug
-> Task :app:mergeDebugResources
+> Task :app:parseDebugLocalResources
 > Task :capacitor-filesystem:extractDeepLinksDebug UP-TO-DATE
 > Task :capacitor-filesystem:processDebugManifest UP-TO-DATE
 > Task :capacitor-haptics:extractDeepLinksDebug UP-TO-DATE
@@ -198,16 +198,16 @@ WARNING: Using flatDir should be avoided because it doesn't support any meta-dat
 > Task :capacitor-android:parseDebugLocalResources UP-TO-DATE
 > Task :capacitor-android:generateDebugRFile UP-TO-DATE
 > Task :capacitor-app:compileDebugLibraryResources UP-TO-DATE
+> Task :capacitor-cordova-android-plugins:processDebugManifest
 > Task :capacitor-app:parseDebugLocalResources UP-TO-DATE
+> Task :app:processDebugMainManifest UP-TO-DATE
+> Task :app:processDebugManifest UP-TO-DATE
+> Task :app:processDebugManifestForPackage UP-TO-DATE
 > Task :capacitor-app:generateDebugRFile UP-TO-DATE
 > Task :capacitor-cordova-android-plugins:compileDebugLibraryResources
-> Task :capacitor-cordova-android-plugins:processDebugManifest
-> Task :capacitor-cordova-android-plugins:parseDebugLocalResources
-> Task :app:processDebugMainManifest
-> Task :app:processDebugManifest
-> Task :app:processDebugManifestForPackage
 > Task :capacitor-filesystem:compileDebugLibraryResources UP-TO-DATE
 > Task :capacitor-filesystem:parseDebugLocalResources UP-TO-DATE
+> Task :capacitor-cordova-android-plugins:parseDebugLocalResources
 > Task :capacitor-filesystem:generateDebugRFile UP-TO-DATE
 > Task :capacitor-haptics:compileDebugLibraryResources UP-TO-DATE
 > Task :capacitor-haptics:parseDebugLocalResources UP-TO-DATE
@@ -282,11 +282,7 @@ WARNING: Using flatDir should be avoided because it doesn't support any meta-dat
 > Task :app:mergeDebugJavaResource UP-TO-DATE
 > Task :app:checkDebugDuplicateClasses UP-TO-DATE
 > Task :app:mergeExtDexDebug UP-TO-DATE
-> Task :app:processDebugResources
-> Task :app:mergeLibDexDebug
-> Task :app:compileDebugJavaWithJavac
-> Task :app:dexBuilderDebug
-> Task :app:mergeDebugGlobalSynthetics UP-TO-DATE
+> Task :app:mergeLibDexDebug UP-TO-DATE
 > Task :app:mergeDebugJniLibFolders UP-TO-DATE
 > Task :capacitor-android:mergeDebugJniLibFolders UP-TO-DATE
 > Task :capacitor-android:mergeDebugNativeLibs NO-SOURCE
@@ -296,9 +292,12 @@ WARNING: Using flatDir should be avoided because it doesn't support any meta-dat
 > Task :capacitor-app:copyDebugJniLibsProjectOnly UP-TO-DATE
 > Task :capacitor-cordova-android-plugins:mergeDebugJniLibFolders
 > Task :capacitor-cordova-android-plugins:mergeDebugNativeLibs NO-SOURCE
-> Task :app:mergeProjectDexDebug
-> Task :capacitor-filesystem:mergeDebugJniLibFolders UP-TO-DATE
 > Task :capacitor-cordova-android-plugins:copyDebugJniLibsProjectOnly
+> Task :app:processDebugResources
+> Task :capacitor-filesystem:mergeDebugJniLibFolders UP-TO-DATE
+> Task :app:compileDebugJavaWithJavac
+> Task :app:dexBuilderDebug
+> Task :app:mergeDebugGlobalSynthetics UP-TO-DATE
 > Task :capacitor-filesystem:mergeDebugNativeLibs NO-SOURCE
 > Task :capacitor-filesystem:copyDebugJniLibsProjectOnly UP-TO-DATE
 > Task :capacitor-haptics:mergeDebugJniLibFolders UP-TO-DATE
@@ -338,6 +337,7 @@ WARNING: Using flatDir should be avoided because it doesn't support any meta-dat
 > Task :capacitor-app:assembleDebug UP-TO-DATE
 > Task :capacitor-cordova-android-plugins:stripDebugDebugSymbols NO-SOURCE
 > Task :capacitor-cordova-android-plugins:copyDebugJniLibsProjectAndLocalJars
+> Task :app:mergeProjectDexDebug
 > Task :capacitor-cordova-android-plugins:extractDebugAnnotations
 > Task :capacitor-cordova-android-plugins:extractDeepLinksForAarDebug UP-TO-DATE
 > Task :capacitor-cordova-android-plugins:mergeDebugGeneratedProguardFiles UP-TO-DATE
@@ -356,9 +356,6 @@ WARNING: Using flatDir should be avoided because it doesn't support any meta-dat
 > Task :capacitor-filesystem:mergeDebugConsumerProguardFiles UP-TO-DATE
 > Task :capacitor-filesystem:prepareDebugArtProfile UP-TO-DATE
 > Task :capacitor-filesystem:prepareLintJarForPublish UP-TO-DATE
-> Task :app:packageDebug
-> Task :app:createDebugApkListingFileRedirect UP-TO-DATE
-> Task :app:assembleDebug
 > Task :capacitor-filesystem:mergeDebugJavaResource UP-TO-DATE
 > Task :capacitor-filesystem:syncDebugLibJars UP-TO-DATE
 > Task :capacitor-filesystem:bundleDebugAar UP-TO-DATE
@@ -387,7 +384,10 @@ WARNING: Using flatDir should be avoided because it doesn't support any meta-dat
 > Task :capacitor-share:syncDebugLibJars UP-TO-DATE
 > Task :capacitor-share:bundleDebugAar UP-TO-DATE
 > Task :capacitor-share:assembleDebug UP-TO-DATE
+> Task :app:packageDebug
+> Task :app:createDebugApkListingFileRedirect UP-TO-DATE
+> Task :app:assembleDebug
 
-BUILD SUCCESSFUL in 30s
-195 actionable tasks: 39 executed, 156 up-to-date
+BUILD SUCCESSFUL in 24s
+195 actionable tasks: 34 executed, 161 up-to-date
 Build succeeded.
