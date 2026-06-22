@@ -4587,7 +4587,7 @@ html:is(
 
 .status-options {
   display: flex;
-  flex-direction: column;
+  justify-content: space-around;
   gap: 10px;
   margin-bottom: 16px;
 }
@@ -4595,8 +4595,7 @@ html:is(
 .status-btn {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 14px 18px;
+  padding: 10px 18px;
   border: 2px solid var(--border);
   border-radius: var(--radius-sm);
   background: var(--surface);
