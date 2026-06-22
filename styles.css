@@ -1496,10 +1496,10 @@ html:is(
 
 .nav-item.active {
   color: var(--accent);
-  background: var(--accent-light);
-  border-color: color-mix(in srgb, var(--accent) 35%, var(--border));
-  box-shadow: none;
-  transform: none;
+  background: var(--surface);
+  border-color: var(--border);
+  box-shadow: var(--shadow-sm);
+  transform: translateY(-1px);
 }
 
 html:is(
@@ -1509,9 +1509,8 @@ html:is(
     [data-theme="steel"]
   )
   .nav-item.active {
-  background: color-mix(in srgb, var(--accent) 14%, var(--surface-hover));
-  border-color: color-mix(in srgb, var(--accent) 40%, var(--border));
-  box-shadow: none;
+  background: var(--surface-hover);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.25);
 }
 
 .nav-icon {
@@ -3040,11 +3039,11 @@ html:is(
 }
 
 .main-content--calendar-fit .stat-item .stat-num {
-  font-size: clamp(1.5rem, 4.8vw, 1.85rem);
+  font-size: 1.1rem;
 }
 
 .main-content--calendar-fit .stat-item .stat-label {
-  font-size: 0.72rem;
+  font-size: 0.68rem;
 }
 
 .main-content--calendar-fit .btn-icon {
@@ -3296,18 +3295,40 @@ html:is(
 
 .stat-item .stat-num {
   font-family: var(--font-serif);
-  font-size: clamp(1.65rem, 5.2vw, 2.05rem);
-  font-weight: 700;
-  line-height: 1.15;
-  letter-spacing: -0.02em;
+  font-size: 1.4rem;
+  font-weight: 500;
+  line-height: 1.2;
 }
 
 .stat-item .stat-label {
   font-family: var(--font-serif);
-  font-size: 0.8rem;
-  letter-spacing: 0.08em;
+  font-size: 0.78rem;
+  letter-spacing: 0.1em;
   color: var(--text-muted);
-  margin-top: 6px;
+  margin-top: 4px;
+}
+
+.stat-item-btn {
+  flex: 1;
+  min-width: 0;
+  padding: 4px 2px;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: center;
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  transition: background 0.15s;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.stat-item-btn:hover {
+  background: color-mix(in srgb, var(--accent) 6%, transparent);
+}
+
+.stat-item-btn:active {
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
 }
 
 .stat-item.success .stat-num { color: var(--success); }
@@ -5442,7 +5463,7 @@ html:is(
   }
 
   .stat-item .stat-num {
-    font-size: clamp(1.45rem, 4.6vw, 1.75rem);
+    font-size: clamp(1.1rem, 4vw, 1.25rem);
   }
 
   .year-grid {
@@ -5590,7 +5611,7 @@ html:is(
   }
 
   .main-content--calendar-fit .stat-item .stat-num {
-    font-size: clamp(1.35rem, 4.2vw, 1.6rem);
+    font-size: 1rem;
   }
 }
 
@@ -5751,6 +5772,7 @@ html:is(
   max-width: 280px;
   padding: 0;
   text-align: center;
+  cursor: text;
 }
 
 .lock-pin-input {

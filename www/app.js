@@ -51,8 +51,7 @@ const SESSION_META = {
 
 const SWIPE_TAB_ORDER = ["calendar", "achievements", "memos", "summary"];
 const SWIPE_MIN_DISTANCE = 56;
-const SWIPE_EDGE_WIDTH = 40;
-let activeMainTab = "calendar";
+const SWIPE_EDGE_WIDTH = 28;
 
 const WIDGET_STYLE_IDS = ["classic", "minimal", "dark", "accent", "outline"];
 const WIDGET_STYLE_META = {
@@ -1339,14 +1338,11 @@ function updateHeaderVisibility(tabName) {
 }
 
 function switchTab(tabName, options = {}) {
-  const { slideDirection = 0 } = options;
+  const { fromNav = true, slideDirection = 0 } = options;
   const newPanelId = `${tabName}-panel`;
-  activeMainTab = tabName;
 
   document.querySelectorAll(".nav-item").forEach((item) => {
-    const isActive = item.dataset.tab === tabName;
-    item.classList.toggle("active", isActive);
-    item.setAttribute("aria-current", isActive ? "page" : "false");
+    item.classList.toggle("active", fromNav && item.dataset.tab === tabName);
   });
 
   document.querySelectorAll("#main-view .panel").forEach((panel) => {
@@ -1398,8 +1394,25 @@ function switchMemosPageTab(tab) {
   else renderMemos();
 }
 
+function setRecordsFilter(filterName, value) {
+  document
+    .querySelectorAll(`#memos-panel .records-filter-chips[data-filter="${filterName}"] .filter-chip`)
+    .forEach((btn) => {
+      btn.classList.toggle("active", btn.dataset.value === value);
+    });
+}
+
+function openRecordsWithStatusFilter(status) {
+  if (!["success", "partial", "fail"].includes(status)) return;
+  setRecordsFilter("status", status);
+  setRecordsFilter("session", "");
+  setRecordsFilter("period", "");
+  memosPageTab = "records";
+  switchTab("memos", { fromNav: true });
+}
+
 document.querySelectorAll(".nav-item").forEach((item) => {
-  item.addEventListener("click", () => switchTab(item.dataset.tab));
+  item.addEventListener("click", () => switchTab(item.dataset.tab, { fromNav: true }));
 });
 
 document.querySelectorAll(".memos-page-tab").forEach((btn) => {
@@ -1407,7 +1420,7 @@ document.querySelectorAll(".memos-page-tab").forEach((btn) => {
 });
 
 function getActiveNavTab() {
-  return activeMainTab;
+  return document.querySelector(".nav-item.active")?.dataset.tab || "calendar";
 }
 
 function getSwipeContext() {
@@ -1451,14 +1464,13 @@ function switchTabBySwipeOffset(context, direction) {
   if (index < 0) return false;
   const nextIndex = index + direction;
   if (nextIndex < 0 || nextIndex >= SWIPE_TAB_ORDER.length) return false;
-  switchTab(SWIPE_TAB_ORDER[nextIndex], { slideDirection: direction });
+  switchTab(SWIPE_TAB_ORDER[nextIndex], { fromNav: true, slideDirection: direction });
   return true;
 }
 
 function initSwipeNavigation() {
   let startX = 0;
   let startY = 0;
-  let fromLeftEdge = false;
   let fromRightEdge = false;
   let tracking = false;
 
@@ -1469,12 +1481,7 @@ function initSwipeNavigation() {
       const touch = e.touches[0];
       startX = touch.clientX;
       startY = touch.clientY;
-      const edgeWidth = Math.max(
-        SWIPE_EDGE_WIDTH,
-        parseInt(getComputedStyle(document.documentElement).getPropertyValue("--page-gutter"), 10) + 24 || SWIPE_EDGE_WIDTH
-      );
-      fromLeftEdge = startX <= edgeWidth;
-      fromRightEdge = startX >= window.innerWidth - edgeWidth;
+      fromRightEdge = startX >= window.innerWidth - SWIPE_EDGE_WIDTH;
       tracking = true;
     },
     { passive: true }
@@ -1491,10 +1498,10 @@ function initSwipeNavigation() {
       if (Math.abs(dx) < SWIPE_MIN_DISTANCE || Math.abs(dx) < Math.abs(dy) * 1.15) return;
 
       const context = getSwipeContext();
-      const edgeBack =
-        (fromLeftEdge && dx > 0) || (fromRightEdge && dx < 0);
-      if (edgeBack && handleSwipeBack(context)) return;
-
+      if (fromRightEdge && dx < 0) {
+        handleSwipeBack(context);
+        return;
+      }
       if (dx < 0) switchTabBySwipeOffset(context, 1);
       else switchTabBySwipeOffset(context, -1);
     },
@@ -1723,18 +1730,18 @@ function renderMonthStats() {
   const statsEl = document.getElementById("month-stats");
 
   statsEl.innerHTML = `
-    <div class="stat-item success">
+    <button type="button" class="stat-item stat-item-btn success" data-stat-status="success" aria-label="查看守住了的打卡记录">
       <div class="stat-num">${habit.sober}</div>
       <div class="stat-label">守住了</div>
-    </div>
-    <div class="stat-item partial">
+    </button>
+    <button type="button" class="stat-item stat-item-btn partial" data-stat-status="partial" aria-label="查看差点犯的打卡记录">
       <div class="stat-num">${habit.nearMiss}</div>
       <div class="stat-label">差点犯</div>
-    </div>
-    <div class="stat-item fail">
+    </button>
+    <button type="button" class="stat-item stat-item-btn fail" data-stat-status="fail" aria-label="查看没守住的打卡记录">
       <div class="stat-num">${habit.relapse}</div>
       <div class="stat-label">没守住</div>
-    </div>
+    </button>
   `;
 }
 
@@ -2320,7 +2327,7 @@ document.querySelectorAll(".session-tab").forEach((btn) => {
 // ===== 打卡记录 =====
 function getRecordsFilterValues() {
   const read = (name) =>
-    document.querySelector(`.records-filter-chips[data-filter="${name}"] .filter-chip.active`)
+    document.querySelector(`#memos-panel .records-filter-chips[data-filter="${name}"] .filter-chip.active`)
       ?.dataset.value || "";
   return {
     status: read("status"),
@@ -2389,7 +2396,7 @@ function initAchievementFilter() {
 }
 
 function initRecordsFilters() {
-  document.querySelectorAll(".records-filter-chips").forEach((group) => {
+  document.querySelectorAll("#memos-panel .records-filter-chips").forEach((group) => {
     group.addEventListener("click", (e) => {
       const chip = e.target.closest(".filter-chip");
       if (!chip || !group.contains(chip)) return;
@@ -2931,6 +2938,26 @@ function showLockError(message = "密码错误，请重试") {
   errorEl.setAttribute("role", "alert");
 }
 
+function focusLockPinInput() {
+  const input = document.getElementById("lock-pin-input");
+  if (!input || input.offsetParent === null) return;
+  try {
+    input.setAttribute("readonly", "readonly");
+    input.focus({ preventScroll: true });
+  } catch {
+    input.focus();
+  }
+  requestAnimationFrame(() => {
+    input.removeAttribute("readonly");
+    try {
+      input.focus({ preventScroll: true });
+    } catch {
+      input.focus();
+    }
+    if (typeof input.click === "function") input.click();
+  });
+}
+
 function showLockScreen() {
   const screen = document.getElementById("lock-screen");
   const input = document.getElementById("lock-pin-input");
@@ -2942,16 +2969,8 @@ function showLockScreen() {
   document.body.classList.add("body-locked");
   if (input) {
     input.value = "";
-    const focusInput = () => {
-      try {
-        input.focus({ preventScroll: true });
-      } catch {
-        input.focus();
-      }
-    };
-    focusInput();
-    setTimeout(focusInput, 120);
-    setTimeout(focusInput, 360);
+    focusLockPinInput();
+    [120, 360, 720].forEach((delay) => setTimeout(focusLockPinInput, delay));
   }
 }
 
@@ -2996,7 +3015,7 @@ async function handleLockSubmit(options = {}) {
       if (options.auto && normalized.length < PIN_MAX_LEN) return;
       showLockError();
       input.value = "";
-      input.focus();
+      focusLockPinInput();
       hapticImpact("Light");
       return;
     }
@@ -3120,6 +3139,10 @@ function initAppLock() {
     if (e.key === "Enter") handleLockSubmit();
   });
   document.getElementById("lock-pin-input")?.addEventListener("input", handleLockPinInput);
+  document.getElementById("lock-pin-block")?.addEventListener("click", (e) => {
+    if (e.target.closest("#lock-submit-btn")) return;
+    focusLockPinInput();
+  });
 }
 
 function downloadJsonInBrowser(json, fileName) {
@@ -3267,6 +3290,11 @@ updateMemosPageToolbar();
 initMemoLongPress();
 initAppLock();
 initSwipeNavigation();
+document.getElementById("month-stats")?.addEventListener("click", (e) => {
+  const btn = e.target.closest("[data-stat-status]");
+  if (!btn) return;
+  openRecordsWithStatusFilter(btn.dataset.statStatus);
+});
 document.getElementById("main-view")?.classList.add("main-content--calendar-fit");
 document.getElementById("milestone-dismiss")?.addEventListener("click", closeMilestoneModal);
 document.getElementById("milestone-modal")?.querySelector(".milestone-backdrop")?.addEventListener("click", closeMilestoneModal);
